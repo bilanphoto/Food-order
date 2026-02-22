@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🍱 สั่งอาหารกลุ่ม</title>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;สั่งอาหารกลุ่ม&quot;,&quot;short_name&quot;:&quot;🍱 อาหาร&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#1a1008&quot;,&quot;theme_color&quot;:&quot;#f5a623&quot;}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="🍱 อาหาร">
 <style>
 :root{
   --bg:#1a1008;--bg2:#231508;--card:#2d1c0e;--card2:#3a2310;
@@ -206,10 +210,13 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .qr-section{padding:14px;}
 .qr-section h3{font-family:'Mitr',sans-serif;font-size:16px;font-weight:600;color:var(--text);margin-bottom:14px;}
 .qr-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
-.qr-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;text-align:center;}
-.qr-card-header{background:linear-gradient(135deg,rgba(245,166,35,0.15),rgba(232,131,42,0.08));border-bottom:1px solid var(--border);padding:10px 14px;}
+.qr-card{background:var(--card);border:1.5px solid var(--border);border-radius:16px;overflow:hidden;text-align:center;transition:border-color .4s,background .4s;}
+.qr-card.paid{border-color:#4caf7d;background:rgba(76,175,125,0.07);}
+.qr-card-header{background:linear-gradient(135deg,rgba(245,166,35,0.15),rgba(232,131,42,0.08));border-bottom:1px solid var(--border);padding:10px 14px;transition:background .4s;}
+.qr-card.paid .qr-card-header{background:linear-gradient(135deg,rgba(76,175,125,0.25),rgba(56,161,105,0.12));border-bottom-color:rgba(76,175,125,0.3);}
 .qr-card-name{font-size:14px;font-weight:600;color:var(--accent);}
 .qr-card-amount{font-family:'Mitr',sans-serif;font-size:24px;font-weight:700;color:var(--text);margin-top:2px;}
+.qr-paid-badge{display:inline-block;background:var(--green);color:#fff;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;margin-top:4px;animation:fadeIn .4s ease;}
 .qr-img-wrap{padding:14px;background:white;margin:12px;border-radius:12px;display:flex;align-items:center;justify-content:center;}
 .qr-img-wrap img{display:block;width:180px;height:180px;}
 .qr-items-list{padding:0 14px 10px;text-align:left;}
@@ -962,8 +969,13 @@ function confirmAdminPrices() {
     ).join('');
     const card=document.createElement('div');
     card.className='qr-card';
+    card.setAttribute('data-person', person);
     card.innerHTML=
-      '<div class="qr-card-header"><div class="qr-card-name">👤 '+person+'</div><div class="qr-card-amount">฿'+amount+'</div></div>'+
+      '<div class="qr-card-header">'+
+        '<div class="qr-card-name">👤 '+person+'</div>'+
+        '<div class="qr-card-amount">฿'+amount+'</div>'+
+        '<div id="paid-badge-'+person.replace(/[^a-zA-Z0-9ก-๙]/g,'_')+'"></div>'+
+      '</div>'+
       '<div class="qr-img-wrap"><a href="'+qrUrl+'.png" target="_blank"><img src="'+qrUrl+'.png" alt="QR" style="width:180px;height:180px;"></a></div>'+
       '<div class="qr-items-list">'+itemRows+'</div>'+
       '<div style="display:flex;gap:8px;margin:0 14px 14px;">'+
@@ -975,18 +987,47 @@ function confirmAdminPrices() {
   document.getElementById('admin-qr-section').style.display='block';
   document.getElementById('admin-qr-section').scrollIntoView({behavior:'smooth'});
 
-  // Save notification for each person so their app can pick it up
+  // Save notification per person + start admin ack polling
   const ts = String(Date.now());
+  const notifiedPersons = Object.keys(personData);
   Object.entries(personData).forEach(([person, data]) => {
     const qrUrl = 'https://promptpay.io/' + phone + '/' + data.total + '.png';
-    const notifVal = JSON.stringify({
-      person, amount: data.total, qrUrl, ts, items: data.items
-    });
+    const notifVal = JSON.stringify({ person, amount: data.total, qrUrl, ts, items: data.items });
     const key = encodeURIComponent('qr_' + person);
+    // Clear old ack first, then save new notif
+    const ackKey = encodeURIComponent('qr_ack_' + person);
+    jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + ackKey + '&value=pending&ts=' + ts).catch(()=>{});
     jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + encodeURIComponent(notifVal) + '&ts=' + ts).catch(()=>{});
   });
-
+  startAdminAckPolling(notifiedPersons, ts);
   showToast('✅ สร้าง QR และแจ้งเตือนแล้ว!', 'success');
+}
+
+let _adminAckTimer = null;
+function startAdminAckPolling(persons, batchTs) {
+  if (_adminAckTimer) clearInterval(_adminAckTimer);
+  _adminAckTimer = setInterval(async () => {
+    let allPaid = true;
+    for (const person of persons) {
+      const ackKey = encodeURIComponent('qr_ack_' + person);
+      try {
+        const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey);
+        const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
+        if (res && res.value === 'paid' && res.ts >= batchTs) {
+          // Mark card green
+          const card = document.querySelector('.qr-card[data-person="' + person + '"]');
+          if (card && !card.classList.contains('paid')) {
+            card.classList.add('paid');
+            const badge = document.getElementById('paid-badge-' + personId);
+            if (badge) badge.innerHTML = '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>';
+          }
+        } else {
+          allPaid = false;
+        }
+      } catch(e) { allPaid = false; }
+    }
+    if (allPaid) { clearInterval(_adminAckTimer); _adminAckTimer = null; }
+  }, 5000);
 }
 function savePhoneNow() {
   const phone = document.getElementById('admin-phone').value.trim().replace(/\D/g,'');
@@ -1408,10 +1449,55 @@ function showQrNotif(data) {
     '<div>' + it.emoji + ' ' + it.name + ' ×' + it.qty + ' — ฿' + it.actual + '</div>'
   ).join('');
   document.getElementById('qr-notif-overlay').style.display = 'flex';
+
+  // Badge API (PWA icon badge)
+  updateAppBadge(1);
+
+  // Web Notification (native system notification)
+  if ('Notification' in window) {
+    if (Notification.permission === 'granted') {
+      fireWebNotif(data);
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(p => { if (p === 'granted') fireWebNotif(data); });
+    }
+  }
+}
+
+function fireWebNotif(data) {
+  try {
+    const n = new Notification('💳 กรุณาชำระเงิน', {
+      body: '👤 ' + data.person + '  ฿' + data.amount,
+      icon: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
+      badge: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
+      tag: 'qr-payment',
+      requireInteraction: true
+    });
+    n.onclick = () => {
+      window.focus();
+      document.getElementById('qr-notif-overlay').style.display = 'flex';
+      n.close();
+    };
+  } catch(e) {}
+}
+
+function updateAppBadge(count) {
+  try {
+    if (navigator.setAppBadge) {
+      count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge();
+    }
+  } catch(e) {}
 }
 
 function dismissQrNotif() {
   document.getElementById('qr-notif-overlay').style.display = 'none';
+  // Tell GAS this person has acknowledged (paid)
+  if (currentUser) {
+    const ackKey = encodeURIComponent('qr_ack_' + currentUser);
+    const ts = String(Date.now());
+    jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + ackKey + '&value=' + encodeURIComponent('paid') + '&ts=' + ts).catch(()=>{});
+  }
+  // Update badge count
+  updateAppBadge(0);
 }
 
 // ════════════════════════════════
