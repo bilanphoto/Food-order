@@ -926,36 +926,39 @@ function restoreQrSection() {
   wrap.innerHTML = '';
 
   Object.entries(qrState).forEach(([person, data]) => {
-    const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
-    const isPaid = !!paidMap[person];
-    const itemRows = (data.items||[]).map(it =>
-      '<div class="qr-item-row">'+
-        '<span class="qr-item-name">'+it.emoji+' '+it.name+' ×'+it.qty+'</span>'+
-        '<span>฿'+it.actual+'</span>'+
-      '</div>'
-    ).join('');
-    const card = document.createElement('div');
-    card.className = 'qr-card' + (isPaid ? ' paid' : '');
-    card.setAttribute('data-person', person);
-    card.innerHTML =
-      '<div class="qr-card-header">'+
-        '<div class="qr-card-name">👤 '+person+'</div>'+
-        '<div class="qr-card-amount">฿'+data.amount+'</div>'+
-        '<div id="paid-badge-'+personId+'">'+(isPaid ? '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>' : '')+'</div>'+
-      '</div>'+
-      '<div class="qr-img-wrap">'+
-        '<a href="'+data.qrUrl+'" target="_blank">'+
-          '<img src="'+data.qrUrl+'" alt="QR" style="width:180px;height:180px;">'+
-        '</a>'+
-      '</div>'+
-      '<div class="qr-items-list">'+itemRows+'</div>'+
-      '<div style="display:flex;gap:8px;margin:0 14px 14px;">'+
-        '<button class="qr-save-btn" style="flex:1" onclick="downloadQR(this.dataset.url,this.dataset.fn)" data-url="'+data.qrUrl+'" data-fn="QR_'+person+'_'+data.amount+'THB.png">💾 บันทึก QR</button>'+
-        '<button class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(this.dataset.url)" data-url="'+data.qrUrl.replace('.png','')+'">🔗 เปิด QR</button>'+
-      '</div>';
-    wrap.appendChild(card);
+    try {
+      const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
+      const isPaid = !!paidMap[person];
+      const itemRows = (data.items||[]).map(it =>
+        '<div class="qr-item-row">'+
+          '<span class="qr-item-name">'+(it.emoji||'🍽️')+' '+(it.name||'')+' ×'+(it.qty||0)+'</span>'+
+          '<span>฿'+(it.actual||0)+'</span>'+
+        '</div>'
+      ).join('');
+      const card = document.createElement('div');
+      card.className = 'qr-card' + (isPaid ? ' paid' : '');
+      card.setAttribute('data-person', person);
+      card.innerHTML =
+        '<div class="qr-card-header">'+
+          '<div class="qr-card-name">👤 '+person+'</div>'+
+          '<div class="qr-card-amount">฿'+(data.amount||0)+'</div>'+
+          '<div id="paid-badge-'+personId+'">'+(isPaid ? '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>' : '')+'</div>'+
+        '</div>'+
+        '<div class="qr-img-wrap">'+
+          '<a href="'+(data.qrUrl||'')+'" target="_blank">'+
+            '<img src="'+(data.qrUrl||'')+'" alt="QR" style="width:180px;height:180px;">'+
+          '</a>'+
+        '</div>'+
+        '<div class="qr-items-list">'+itemRows+'</div>'+
+        '<div style="display:flex;gap:8px;margin:0 14px 14px;">'+
+          '<button class="qr-save-btn" style="flex:1" onclick="downloadQR(this.dataset.url,this.dataset.fn)" data-url="'+(data.qrUrl||'')+'" data-fn="QR_'+person+'_'+(data.amount||0)+'THB.png">💾 บันทึก QR</button>'+
+          '<button class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(this.dataset.url)" data-url="'+(data.qrUrl||'').replace('.png','')+'">🔗 เปิด QR</button>'+
+        '</div>';
+      wrap.appendChild(card);
+    } catch(err) { console.error('restoreQrSection card error:', person, err); }
   });
 
+  // Always show section if we have state, even if some cards failed
   document.getElementById('admin-qr-section').style.display = 'block';
 
   // Resume polling for unpaid
