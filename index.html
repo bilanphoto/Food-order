@@ -118,6 +118,19 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .modal-submit:hover{transform:scale(1.02);}
 .modal-submit:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
 
+/* QR NOTIFICATION POPUP */
+.qr-notif-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .3s ease;}
+.qr-notif-box{background:var(--card);border:2px solid var(--accent);border-radius:24px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:popUp .35s cubic-bezier(.34,1.56,.64,1);}
+@keyframes popUp{from{transform:scale(0.7);opacity:0}to{transform:scale(1);opacity:1}}
+.qr-notif-title{font-family:'Mitr',sans-serif;font-size:13px;color:var(--text2);margin-bottom:4px;}
+.qr-notif-name{font-family:'Mitr',sans-serif;font-size:20px;font-weight:700;color:var(--accent);margin-bottom:2px;}
+.qr-notif-amount{font-family:'Mitr',sans-serif;font-size:42px;font-weight:700;color:var(--text);margin:8px 0;}
+.qr-notif-img{width:200px;height:200px;border-radius:12px;margin:8px auto;display:block;background:#fff;padding:4px;}
+.qr-notif-items{background:var(--bg2);border-radius:10px;padding:10px 12px;margin:10px 0;text-align:left;font-size:12px;color:var(--text2);max-height:120px;overflow-y:auto;}
+.qr-notif-items div{padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+.qr-notif-items div:last-child{border:none;}
+.qr-notif-close{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;padding:13px;font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:var(--bg);cursor:pointer;margin-top:6px;}
+
 /* PAGE HEADER */
 .page-header{background:var(--card);border-bottom:1px solid var(--border);padding:14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:50;}
 .back-btn{background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:7px 12px;font-family:'Kanit',sans-serif;font-size:12px;color:var(--text2);cursor:pointer;flex-shrink:0;}
@@ -425,6 +438,17 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 </div>
 
 <!-- CONFIRM ORDER MODAL -->
+<div id="qr-notif-overlay" style="display:none;" onclick="if(event.target===this)dismissQrNotif()">
+  <div class="qr-notif-box">
+    <div class="qr-notif-title">💳 กรุณาชำระเงิน</div>
+    <div class="qr-notif-name" id="qrn-name"></div>
+    <div class="qr-notif-amount" id="qrn-amount"></div>
+    <img class="qr-notif-img" id="qrn-img" src="" alt="QR">
+    <div class="qr-notif-items" id="qrn-items"></div>
+    <button class="qr-notif-close" onclick="dismissQrNotif()">✅ รับทราบแล้ว</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-overlay" onclick="closeModalIfOutside(event)">
   <div class="modal-box">
     <div class="modal-header">
@@ -491,6 +515,7 @@ function doRegister() {
   document.getElementById('display-name').textContent = currentUser;
   showPage('page-menu');
   renderAllGrids();
+  startQrPolling();
 }
 
 // ════════════════════════════════
@@ -949,7 +974,19 @@ function confirmAdminPrices() {
   });
   document.getElementById('admin-qr-section').style.display='block';
   document.getElementById('admin-qr-section').scrollIntoView({behavior:'smooth'});
-  showToast('✅ สร้าง QR เรียบร้อย!','success');
+
+  // Save notification for each person so their app can pick it up
+  const ts = String(Date.now());
+  Object.entries(personData).forEach(([person, data]) => {
+    const qrUrl = 'https://promptpay.io/' + phone + '/' + data.total + '.png';
+    const notifVal = JSON.stringify({
+      person, amount: data.total, qrUrl, ts, items: data.items
+    });
+    const key = encodeURIComponent('qr_' + person);
+    jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + encodeURIComponent(notifVal) + '&ts=' + ts).catch(()=>{});
+  });
+
+  showToast('✅ สร้าง QR และแจ้งเตือนแล้ว!', 'success');
 }
 function savePhoneNow() {
   const phone = document.getElementById('admin-phone').value.trim().replace(/\D/g,'');
@@ -1338,6 +1375,46 @@ function showToast(msg,type='success') {
 }
 
 // ════════════════════════════════
+//  QR NOTIFICATION POLLING
+// ════════════════════════════════
+let _qrPollTimer = null;
+let _lastQrTs    = '';   // track last seen notification timestamp
+
+function startQrPolling() {
+  if (_qrPollTimer) return;
+  _qrPollTimer = setInterval(checkQrNotification, 5000);
+  checkQrNotification(); // immediate first check
+}
+
+async function checkQrNotification() {
+  if (!currentUser) return;
+  try {
+    const key = 'qr_' + currentUser;
+    const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + encodeURIComponent(key));
+    if (res && res.value && res.ts !== _lastQrTs) {
+      _lastQrTs = res.ts;
+      const data = JSON.parse(res.value);
+      showQrNotif(data);
+    }
+  } catch(e) {}
+}
+
+function showQrNotif(data) {
+  document.getElementById('qrn-name').textContent = '👤 ' + (data.person||'');
+  document.getElementById('qrn-amount').textContent = '฿' + (data.amount||0);
+  document.getElementById('qrn-img').src = data.qrUrl || '';
+  const itemsEl = document.getElementById('qrn-items');
+  itemsEl.innerHTML = (data.items||[]).map(it =>
+    '<div>' + it.emoji + ' ' + it.name + ' ×' + it.qty + ' — ฿' + it.actual + '</div>'
+  ).join('');
+  document.getElementById('qr-notif-overlay').style.display = 'flex';
+}
+
+function dismissQrNotif() {
+  document.getElementById('qr-notif-overlay').style.display = 'none';
+}
+
+// ════════════════════════════════
 //  INIT
 // ════════════════════════════════
 (async function init() {
@@ -1377,6 +1454,7 @@ function showToast(msg,type='success') {
     currentUser = saved;
     document.getElementById('display-name').textContent = saved;
     showPage('page-menu');
+    startQrPolling();
   }
   renderAllGrids();
 })();
