@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍱 สั่งอาหารกลุ่ม</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1008;--bg2:#231508;--card:#2d1c0e;--card2:#3a2310;
+  --accent:#f5a623;--accent2:#e8832a;--accent3:#ff6b35;
+  --text:#f5e6d3;--text2:#c4a882;--text3:#8a7060;
+  --green:#4caf7d;--red:#e05c5c;--blue:#7caeff;
+  --border:rgba(245,166,35,0.2);--shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 20% 50%,rgba(245,166,35,0.06) 0%,transparent 60%),
+  radial-gradient(ellipse at 80% 20%,rgba(232,131,42,0.04) 0%,transparent 50%);}
+.page{display:none;min-height:100vh;}
+.page.active{display:flex;flex-direction:column;}
+
+/* REGISTER */
+#page-register{align-items:center;justify-content:center;padding:24px;}
+.register-box{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:48px 40px;max-width:420px;width:100%;box-shadow:var(--shadow);text-align:center;animation:fadeUp .5s ease both;}
+.logo-icon{font-size:64px;display:block;margin-bottom:16px;animation:bounce 2s ease-in-out infinite;}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.register-box h1{font-family:'Mitr',sans-serif;font-size:28px;font-weight:600;color:var(--accent);margin-bottom:6px;}
+.register-box p{color:var(--text2);font-size:15px;font-weight:300;margin-bottom:36px;}
+.input-group{margin-bottom:20px;}
+.input-group label{display:block;text-align:left;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:8px;}
+.input-group input{width:100%;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:14px 18px;font-family:'Kanit',sans-serif;font-size:16px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;}
+.input-group input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(245,166,35,0.15);}
+.input-group input::placeholder{color:var(--text3);}
+.btn-primary{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;padding:15px;font-family:'Kanit',sans-serif;font-size:17px;font-weight:600;color:var(--bg);cursor:pointer;box-shadow:0 4px 20px rgba(245,166,35,0.3);transition:transform .15s;}
+.btn-primary:hover{transform:translateY(-2px);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+/* TOPBAR */
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);gap:8px;}
+.user-chip{background:linear-gradient(135deg,rgba(245,166,35,0.2),rgba(232,131,42,0.1));border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:13px;font-weight:500;color:var(--accent);white-space:nowrap;cursor:pointer;}
+.topbar-btns{display:flex;gap:6px;flex-shrink:0;}
+.cart-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:11px;padding:8px 13px;font-family:'Kanit',sans-serif;font-size:12px;font-weight:600;color:var(--bg);cursor:pointer;display:flex;align-items:center;gap:5px;transition:transform .15s;white-space:nowrap;}
+.cart-btn:hover{transform:scale(1.04);}
+.cart-btn.secondary{background:var(--card2);color:var(--text2);border:1px solid var(--border);}
+.cart-btn.admin-btn{background:rgba(224,92,92,0.75);color:white;}
+.cart-badge{background:var(--red);color:white;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;min-width:18px;text-align:center;}
+
+/* TABS */
+.tabs-wrap{padding:12px 14px 0;border-bottom:1px solid var(--border);background:var(--bg2);}
+.tabs{display:flex;gap:4px;overflow-x:auto;}
+.tab-btn{background:transparent;border:none;padding:9px 16px 11px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2.5px solid transparent;transition:all .2s;border-radius:8px 8px 0 0;white-space:nowrap;flex-shrink:0;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(245,166,35,0.06);}
+
+/* MENU */
+.tab-content{display:none;padding:14px;padding-bottom:80px;}
+.tab-content.active{display:block;}
+.section-title{font-family:'Mitr',sans-serif;font-size:11px;font-weight:500;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin:18px 0 9px;display:flex;align-items:center;gap:8px;}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+.section-title:first-child{margin-top:0;}
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:9px;}
+.menu-card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px;display:flex;align-items:center;gap:11px;transition:border-color .2s,transform .15s;}
+.menu-card:hover{border-color:rgba(245,166,35,0.4);transform:translateY(-1px);}
+.menu-card.in-cart{border-color:rgba(76,175,125,0.45);background:rgba(76,175,125,0.04);}
+.menu-emoji{font-size:32px;flex-shrink:0;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:var(--card2);border-radius:10px;}
+.menu-info{flex:1;min-width:0;}
+.menu-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.menu-desc{font-size:11px;color:var(--text3);font-weight:300;}
+.menu-price{font-family:'Mitr',sans-serif;font-size:14px;font-weight:600;color:var(--accent);margin-top:3px;}
+.qty-ctrl{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.qty-btn{width:27px;height:27px;border-radius:50%;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font-size:17px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.qty-btn:hover{background:rgba(245,166,35,0.2);border-color:var(--accent);}
+.qty-btn.add{border-color:var(--accent);background:var(--accent);color:var(--bg);font-weight:700;}
+.qty-num{font-size:14px;font-weight:600;min-width:16px;text-align:center;}
+.note-row{margin-top:6px;display:none;}
+.note-row.visible{display:block;}
+.note-input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-family:'Kanit',sans-serif;font-size:11px;color:var(--text2);outline:none;}
+.note-input:focus{border-color:var(--accent);}
+.note-input::placeholder{color:var(--text3);}
+.tag{display:inline-block;font-size:10px;padding:2px 6px;border-radius:5px;font-weight:500;margin-left:4px;}
+.tag-hot{background:rgba(255,107,53,0.2);color:var(--accent3);}
+.tag-rec{background:rgba(76,175,125,0.2);color:var(--green);}
+.tag-new{background:rgba(100,150,255,0.2);color:var(--blue);}
+.empty-menu-hint{text-align:center;padding:30px;color:var(--text3);font-size:13px;}
+
+/* BOTTOM BAR */
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);padding:11px 14px;display:flex;align-items:center;justify-content:space-between;z-index:100;backdrop-filter:blur(10px);gap:10px;}
+.bottom-bar-info{font-size:12px;color:var(--text2);}
+.bottom-bar-info span{color:var(--text);font-weight:600;font-size:14px;}
+.confirm-btn{background:linear-gradient(135deg,var(--green),#38a169);border:none;border-radius:11px;padding:10px 18px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0;box-shadow:0 4px 16px rgba(76,175,125,0.35);transition:transform .15s;}
+.confirm-btn:hover{transform:translateY(-2px);}
+.confirm-btn:disabled{opacity:0.35;transform:none;cursor:not-allowed;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.78);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px;opacity:0;pointer-events:none;transition:opacity .25s;}
+.modal-overlay.show{opacity:1;pointer-events:all;}
+.modal-box{background:var(--card);border:1px solid rgba(245,166,35,0.3);border-radius:20px;width:100%;max-width:450px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.7);transform:scale(.95);transition:transform .25s;}
+.modal-overlay.show .modal-box{transform:scale(1);}
+.modal-header{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);border-radius:20px 20px 0 0;}
+.modal-header h3{font-family:'Mitr',sans-serif;font-size:17px;font-weight:600;color:var(--text);}
+.modal-close{background:var(--card2);border:none;border-radius:7px;padding:5px 9px;color:var(--text3);cursor:pointer;font-size:14px;}
+.modal-body{padding:14px 18px;}
+.modal-item-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(245,166,35,0.07);}
+.modal-item-row:last-child{border-bottom:none;}
+.mi-emoji{font-size:22px;width:32px;text-align:center;flex-shrink:0;}
+.mi-info{flex:1;}
+.mi-name{font-size:13px;font-weight:500;}
+.mi-sub{font-size:11px;color:var(--text3);margin-top:1px;}
+.mi-right{text-align:right;flex-shrink:0;}
+.mi-qty{font-size:11px;color:var(--text3);}
+.mi-price{font-family:'Mitr',sans-serif;font-size:14px;font-weight:600;color:var(--text2);}
+.modal-total{background:rgba(245,166,35,0.08);border:1px solid rgba(245,166,35,0.2);border-radius:11px;padding:12px 14px;margin:12px 0;display:flex;justify-content:space-between;align-items:center;}
+.modal-total span{font-size:13px;color:var(--text2);}
+.modal-total strong{font-family:'Mitr',sans-serif;font-size:22px;font-weight:700;color:var(--accent);}
+.modal-footer{padding:0 18px 18px;display:flex;gap:9px;}
+.modal-cancel{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:12px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;}
+.modal-submit{flex:2;background:linear-gradient(135deg,var(--green),#38a169);border:none;border-radius:11px;padding:12px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:transform .15s;}
+.modal-submit:hover{transform:scale(1.02);}
+.modal-submit:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+
+/* PAGE HEADER */
+.page-header{background:var(--card);border-bottom:1px solid var(--border);padding:14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:50;}
+.back-btn{background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:7px 12px;font-family:'Kanit',sans-serif;font-size:12px;color:var(--text2);cursor:pointer;flex-shrink:0;}
+.back-btn:hover{color:var(--accent);}
+.page-header h2{font-family:'Mitr',sans-serif;font-size:17px;font-weight:600;color:var(--text);flex:1;}
+.refresh-btn{background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:7px 11px;font-size:15px;cursor:pointer;transition:transform .4s;flex-shrink:0;}
+.refresh-btn:hover{transform:rotate(180deg);}
+.page-body{padding:14px;padding-bottom:40px;}
+
+/* ORDER TABLE */
+.order-table-wrap{border-radius:13px;overflow:hidden;border:1px solid var(--border);margin-bottom:14px;}
+.order-table{width:100%;border-collapse:collapse;font-size:12px;}
+.order-table thead tr{background:linear-gradient(135deg,rgba(245,166,35,0.18),rgba(232,131,42,0.1));border-bottom:1px solid rgba(245,166,35,0.3);}
+.order-table thead th{padding:10px 11px;text-align:left;font-size:10px;font-weight:600;color:var(--accent);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;}
+.order-table thead th.center{text-align:center;}
+.order-table tbody tr{border-bottom:1px solid rgba(245,166,35,0.07);transition:background .15s;}
+.order-table tbody tr:last-child{border-bottom:none;}
+.order-table tbody tr:hover{background:rgba(245,166,35,0.04);}
+.order-table td{padding:10px 11px;color:var(--text);vertical-align:middle;}
+.order-table td.center{text-align:center;}
+.td-food{display:flex;align-items:center;gap:8px;}
+.td-food-emoji{font-size:18px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--card2);border-radius:7px;flex-shrink:0;}
+.td-food-name{font-weight:500;font-size:12px;}
+.td-food-note{font-size:10px;color:var(--text3);margin-top:1px;}
+.td-qty{background:rgba(245,166,35,0.12);color:var(--accent);font-weight:700;font-size:12px;border-radius:14px;padding:2px 9px;display:inline-block;font-family:'Mitr',sans-serif;}
+.td-price{font-family:'Mitr',sans-serif;font-size:13px;font-weight:600;color:var(--text2);}
+.td-person{display:inline-flex;align-items:center;gap:4px;background:rgba(76,175,125,0.12);color:var(--green);border-radius:14px;padding:2px 9px;font-size:11px;font-weight:500;white-space:nowrap;}
+.td-restaurant{display:inline-flex;align-items:center;background:rgba(124,174,255,0.1);color:var(--blue);border-radius:14px;padding:2px 9px;font-size:10px;font-weight:500;white-space:nowrap;}
+.td-time{font-size:10px;color:var(--text3);white-space:nowrap;}
+.table-footer{background:linear-gradient(135deg,var(--card2),var(--card));border-top:1.5px solid rgba(245,166,35,0.3);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+.stat-pill{font-size:12px;color:var(--text2);}
+.stat-pill strong{color:var(--text);font-weight:600;}
+.table-footer-total{font-family:'Mitr',sans-serif;font-size:19px;font-weight:700;color:var(--accent);}
+.person-sums-wrap{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.person-sum-pill{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;}
+.person-sum-price{font-family:'Mitr',sans-serif;font-size:17px;font-weight:700;color:var(--accent);}
+.clear-btn{background:rgba(224,92,92,0.12);border:1px solid rgba(224,92,92,0.3);border-radius:10px;padding:10px 16px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:500;color:var(--red);cursor:pointer;margin-top:14px;width:100%;transition:background .15s;}
+.clear-btn:hover{background:rgba(224,92,92,0.22);}
+
+/* ADMIN TABS */
+.admin-tabs-wrap{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 14px;}
+.admin-tabs{display:flex;gap:4px;}
+.admin-tab-btn{background:transparent;border:none;padding:11px 18px 13px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2.5px solid transparent;transition:all .2s;white-space:nowrap;}
+.admin-tab-btn.active{color:var(--red);border-bottom-color:var(--red);}
+.admin-tab-content{display:none;}
+.admin-tab-content.active{display:block;}
+
+/* ADMIN PRICE */
+.admin-phone-bar{background:var(--card2);border-bottom:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;gap:10px;}
+.admin-phone-bar label{font-size:12px;color:var(--text2);flex-shrink:0;}
+.admin-phone-input{flex:1;background:var(--bg2);border:1.5px solid var(--border);border-radius:10px;padding:9px 12px;font-family:'Kanit',sans-serif;font-size:14px;color:var(--text);outline:none;transition:border-color .2s;}
+.admin-phone-input:focus{border-color:var(--accent);}
+.admin-phone-input::placeholder{color:var(--text3);}
+.admin-table-wrap{border-radius:13px;overflow:hidden;border:1px solid rgba(224,92,92,0.3);margin-bottom:16px;}
+.admin-table{width:100%;border-collapse:collapse;font-size:12px;}
+.admin-table thead tr{background:linear-gradient(135deg,rgba(224,92,92,0.2),rgba(224,92,92,0.1));border-bottom:1px solid rgba(224,92,92,0.3);}
+.admin-table thead th{padding:10px 11px;text-align:left;font-size:10px;font-weight:600;color:#ffaaaa;letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;}
+.admin-table thead th.center{text-align:center;}
+.admin-table tbody tr{border-bottom:1px solid rgba(245,166,35,0.07);}
+.admin-table tbody tr:last-child{border-bottom:none;}
+.admin-table td{padding:9px 11px;vertical-align:middle;}
+.admin-table td.center{text-align:center;}
+.admin-price-orig{font-size:11px;color:var(--text3);text-decoration:line-through;margin-bottom:2px;}
+.admin-price-input{width:76px;background:var(--bg2);border:1.5px solid rgba(245,166,35,0.3);border-radius:8px;padding:5px 8px;font-family:'Mitr',sans-serif;font-size:13px;color:var(--accent);text-align:center;outline:none;}
+.admin-price-input.changed{border-color:var(--red);color:var(--red);background:rgba(224,92,92,0.06);}
+.admin-confirm-bar{background:var(--card);border-top:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.admin-confirm-btn{background:linear-gradient(135deg,#e05c5c,#c0392b);border:none;border-radius:11px;padding:11px 20px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;display:flex;align-items:center;gap:7px;box-shadow:0 4px 16px rgba(224,92,92,0.3);transition:transform .15s;}
+.admin-confirm-btn:hover{transform:translateY(-2px);}
+.admin-total-preview{font-size:13px;color:var(--text2);}
+.admin-total-preview strong{font-family:'Mitr',sans-serif;font-size:18px;color:var(--red);}
+
+/* QR */
+.qr-section{padding:14px;}
+.qr-section h3{font-family:'Mitr',sans-serif;font-size:16px;font-weight:600;color:var(--text);margin-bottom:14px;}
+.qr-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+.qr-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;text-align:center;}
+.qr-card-header{background:linear-gradient(135deg,rgba(245,166,35,0.15),rgba(232,131,42,0.08));border-bottom:1px solid var(--border);padding:10px 14px;}
+.qr-card-name{font-size:14px;font-weight:600;color:var(--accent);}
+.qr-card-amount{font-family:'Mitr',sans-serif;font-size:24px;font-weight:700;color:var(--text);margin-top:2px;}
+.qr-img-wrap{padding:14px;background:white;margin:12px;border-radius:12px;display:flex;align-items:center;justify-content:center;}
+.qr-img-wrap img{display:block;width:180px;height:180px;}
+.qr-items-list{padding:0 14px 10px;text-align:left;}
+.qr-item-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid rgba(245,166,35,0.06);}
+.qr-item-row:last-child{border-bottom:none;}
+.qr-item-name{color:var(--text);}
+.qr-save-btn{margin:0 14px 14px;width:calc(100% - 28px);background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;padding:10px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;color:var(--bg);cursor:pointer;transition:transform .15s;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;}
+.qr-save-btn:hover{transform:scale(1.02);}
+
+/* ═══ ADMIN MENU EDITOR ═══ */
+.menu-editor-wrap{padding:14px;padding-bottom:90px;}
+.me-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+.me-toolbar h3{font-family:'Mitr',sans-serif;font-size:16px;font-weight:600;color:var(--text);}
+.me-add-rest-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;padding:9px 16px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;color:var(--bg);cursor:pointer;display:flex;align-items:center;gap:6px;transition:transform .15s;flex-shrink:0;}
+.me-add-rest-btn:hover{transform:scale(1.03);}
+.me-restaurant-card{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:12px;overflow:hidden;}
+.me-rest-header{padding:12px 14px;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,rgba(245,166,35,0.12),rgba(232,131,42,0.06));cursor:pointer;user-select:none;}
+.me-rest-emoji-btn{font-size:22px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;transition:background .15s;}
+.me-rest-name-input{flex:1;background:transparent;border:none;font-family:'Kanit',sans-serif;font-size:15px;font-weight:600;color:var(--accent);outline:none;min-width:0;}
+.me-rest-name-input:focus{background:rgba(245,166,35,0.06);border-radius:6px;padding:2px 6px;}
+.me-rest-actions{display:flex;gap:6px;flex-shrink:0;}
+.me-icon-btn{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:5px 9px;font-size:13px;cursor:pointer;transition:background .15s;color:var(--text2);}
+.me-icon-btn:hover{background:rgba(245,166,35,0.15);color:var(--accent);}
+.me-icon-btn.danger:hover{background:rgba(224,92,92,0.15);color:var(--red);border-color:rgba(224,92,92,0.3);}
+.me-rest-body{padding:12px 14px 14px;}
+.me-category-block{margin-bottom:12px;}
+.me-cat-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.me-cat-name-input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-family:'Kanit',sans-serif;font-size:12px;color:var(--text2);outline:none;transition:border-color .2s;}
+.me-cat-name-input:focus{border-color:var(--accent);color:var(--text);}
+.me-items-list{display:flex;flex-direction:column;gap:7px;margin-bottom:8px;}
+.me-item-row{background:var(--bg2);border:1px solid rgba(245,166,35,0.1);border-radius:10px;padding:9px 11px;display:flex;align-items:center;gap:8px;}
+.me-item-emoji-btn{font-size:20px;background:var(--card);border:1px solid var(--border);border-radius:7px;padding:3px 7px;cursor:pointer;flex-shrink:0;}
+.me-item-fields{flex:1;display:grid;grid-template-columns:1fr auto auto;gap:6px;min-width:0;}
+.me-item-name{background:transparent;border:none;border-bottom:1px solid var(--border);font-family:'Kanit',sans-serif;font-size:13px;font-weight:500;color:var(--text);outline:none;padding:2px 4px;width:100%;}
+.me-item-name:focus{border-bottom-color:var(--accent);}
+.me-item-desc{background:transparent;border:none;border-bottom:1px solid transparent;font-family:'Kanit',sans-serif;font-size:11px;color:var(--text3);outline:none;padding:2px 4px;width:100%;grid-column:1/-1;}
+.me-item-desc:focus{border-bottom-color:var(--border);}
+.me-item-price{background:var(--card);border:1px solid rgba(245,166,35,0.3);border-radius:7px;padding:4px 8px;font-family:'Mitr',sans-serif;font-size:13px;font-weight:600;color:var(--accent);text-align:center;outline:none;width:70px;flex-shrink:0;}
+.me-item-tag{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:4px 7px;font-family:'Kanit',sans-serif;font-size:11px;color:var(--text3);outline:none;cursor:pointer;flex-shrink:0;}
+.me-add-item-btn{background:rgba(76,175,125,0.12);border:1px dashed rgba(76,175,125,0.4);border-radius:9px;padding:7px 12px;font-family:'Kanit',sans-serif;font-size:12px;color:var(--green);cursor:pointer;width:100%;transition:background .15s;margin-top:4px;}
+.me-add-item-btn:hover{background:rgba(76,175,125,0.2);}
+.me-add-cat-btn{background:rgba(124,174,255,0.08);border:1px dashed rgba(124,174,255,0.3);border-radius:9px;padding:8px 14px;font-family:'Kanit',sans-serif;font-size:12px;color:var(--blue);cursor:pointer;width:100%;transition:background .15s;margin-top:6px;}
+.me-add-cat-btn:hover{background:rgba(124,174,255,0.15);}
+.me-save-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;z-index:60;backdrop-filter:blur(10px);gap:10px;}
+.me-save-btn{background:linear-gradient(135deg,var(--green),#38a169);border:none;border-radius:11px;padding:12px 24px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;display:flex;align-items:center;gap:7px;box-shadow:0 4px 16px rgba(76,175,125,0.35);transition:transform .15s;}
+.me-save-btn:hover{transform:translateY(-2px);}
+.me-save-info{font-size:12px;color:var(--text3);}
+
+/* EMOJI PICKER */
+.emoji-picker-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:600;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s;}
+.emoji-picker-overlay.show{opacity:1;pointer-events:all;}
+.emoji-picker-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;max-width:340px;width:100%;box-shadow:var(--shadow);}
+.emoji-picker-box h4{font-size:14px;font-weight:600;color:var(--text2);margin-bottom:12px;}
+.emoji-input-row{display:flex;gap:8px;margin-bottom:12px;}
+.emoji-text-input{flex:1;background:var(--bg2);border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;font-family:'Kanit',sans-serif;font-size:15px;color:var(--text);outline:none;}
+.emoji-text-input:focus{border-color:var(--accent);}
+.emoji-confirm-btn{background:var(--accent);border:none;border-radius:9px;padding:9px 14px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;color:var(--bg);cursor:pointer;}
+.emoji-grid{display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow-y:auto;}
+.emoji-grid button{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:20px;cursor:pointer;transition:background .15s;}
+.emoji-grid button:hover{background:rgba(245,166,35,0.2);}
+
+/* EDIT NAME */
+.edit-name-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:500;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s;}
+.edit-name-overlay.show{opacity:1;pointer-events:all;}
+.edit-name-box{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;width:100%;max-width:360px;box-shadow:var(--shadow);}
+.edit-name-box h3{font-family:'Mitr',sans-serif;font-size:16px;font-weight:600;color:var(--text);margin-bottom:16px;}
+.edit-name-input{width:100%;background:var(--bg2);border:1.5px solid var(--border);border-radius:11px;padding:12px 16px;font-family:'Kanit',sans-serif;font-size:16px;color:var(--text);outline:none;transition:border-color .2s;margin-bottom:14px;}
+.edit-name-input:focus{border-color:var(--accent);}
+.edit-name-btns{display:flex;gap:9px;}
+.edit-name-cancel{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;}
+.edit-name-save{flex:2;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;padding:11px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:var(--bg);cursor:pointer;}
+
+/* STATES */
+.empty-state{text-align:center;padding:55px 20px;color:var(--text3);}
+.empty-state .empty-icon{font-size:50px;margin-bottom:12px;}
+.empty-state p{font-size:14px;}
+.loading-state{text-align:center;padding:50px 20px;color:var(--text2);}
+.spinner{display:inline-block;width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(20px);padding:9px 18px;border-radius:18px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:all .3s ease;z-index:700;white-space:nowrap;}
+.toast.success{background:var(--green);color:white;}
+.toast.error{background:var(--red);color:white;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@media(max-width:480px){.register-box{padding:36px 22px;}.menu-grid{grid-template-columns:1fr;}.me-item-fields{grid-template-columns:1fr auto;}}
+
+  /* VARIANTS */
+  .variant-table{width:100%;border-collapse:collapse;margin-top:6px;grid-column:1/-1;}
+  .variant-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+  .variant-label-input{flex:1;background:transparent;border:none;border-bottom:1px solid var(--border);font-family:'Kanit',sans-serif;font-size:12px;color:var(--text2);outline:none;padding:2px 4px;min-width:60px;}
+  .variant-label-input:focus{border-bottom-color:var(--accent);}
+  .variant-price-input{width:64px;background:var(--card);border:1px solid rgba(245,166,35,0.3);border-radius:7px;padding:4px 7px;font-family:'Mitr',sans-serif;font-size:13px;font-weight:600;color:var(--accent);text-align:center;outline:none;flex-shrink:0;}
+  .variant-del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;flex-shrink:0;padding:0 2px;}
+  .variant-del-btn:hover{color:var(--red);}
+  .add-variant-btn{background:rgba(245,166,35,0.07);border:1px dashed rgba(245,166,35,0.3);border-radius:6px;padding:3px 10px;font-family:'Kanit',sans-serif;font-size:11px;color:var(--text3);cursor:pointer;margin-top:2px;grid-column:1/-1;transition:background .15s;}
+  .add-variant-btn:hover{background:rgba(245,166,35,0.15);color:var(--accent);}
+  /* VARIANT SELECTOR IN MENU CARD */
+  .variant-btns{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;}
+  .variant-btn{background:var(--card2);border:1.5px solid var(--border);border-radius:8px;padding:4px 10px;font-family:'Kanit',sans-serif;font-size:11px;color:var(--text2);cursor:pointer;transition:all .15s;display:flex;flex-direction:column;align-items:center;line-height:1.3;}
+  .variant-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .variant-btn.selected{border-color:var(--green);background:rgba(76,175,125,0.12);color:var(--green);}
+  .variant-btn .vb-label{font-size:10px;}
+  .variant-btn .vb-price{font-family:'Mitr',sans-serif;font-size:13px;font-weight:600;}
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: REGISTER -->
+<div id="page-register" class="page active">
+  <div class="register-box">
+    <span class="logo-icon">🍱</span>
+    <h1>สั่งอาหารกลุ่ม</h1>
+    <p>ใส่ชื่อของคุณเพื่อเริ่มสั่งอาหาร</p>
+    <div class="input-group">
+      <label>ชื่อของคุณ</label>
+      <input type="text" id="name-input" placeholder="เช่น สมชาย, น้องออม..." maxlength="30" autocomplete="off">
+    </div>
+    <button class="btn-primary" onclick="doRegister()">✓ &nbsp;เข้าสู่เมนู</button>
+  </div>
+</div>
+
+<!-- PAGE 2: MENU -->
+<div id="page-menu" class="page">
+  <div class="topbar">
+    <div class="user-chip" onclick="editName()" title="คลิกเพื่อแก้ชื่อ">👤 <span id="display-name">ชื่อ</span> <span style="font-size:10px;opacity:.6;">✏️</span></div>
+    <div class="topbar-btns">
+      <button class="cart-btn secondary" onclick="goToAllOrders()">
+        📋 รายการทั้งหมด <span class="cart-badge" id="cart-badge">0</span>
+      </button>
+      <button class="cart-btn admin-btn" onclick="goToAdmin()">🔧 Admin</button>
+    </div>
+  </div>
+  <div class="tabs-wrap">
+    <div class="tabs" id="menu-tabs"></div>
+  </div>
+  <div id="menu-tab-contents"></div>
+  <div class="bottom-bar">
+    <div>
+      <div class="bottom-bar-info">รายการ <span id="my-item-count">0</span> รายการ</div>
+      <div class="bottom-bar-info">ยอด <span id="my-total">฿0</span></div>
+    </div>
+    <button class="confirm-btn" id="confirm-btn" onclick="openConfirmModal()" disabled>✓ ยืนยันการสั่ง</button>
+  </div>
+</div>
+
+<!-- PAGE 3: ALL ORDERS -->
+<div id="page-allorders" class="page">
+  <div class="page-header">
+    <button class="back-btn" onclick="goBack()">← กลับ</button>
+    <h2>📋 รายการทั้งหมด</h2>
+    <button class="refresh-btn" onclick="refreshAllOrders()">🔄</button>
+  </div>
+  <div class="page-body" id="allorders-content"></div>
+</div>
+
+<!-- PAGE 4: ADMIN -->
+<div id="page-admin" class="page">
+  <div class="page-header">
+    <button class="back-btn" onclick="goBack()">← กลับ</button>
+    <h2>🔧 Admin</h2>
+    <button class="refresh-btn" id="test-conn-btn" onclick="testConnection()" title="ทดสอบการเชื่อมต่อ">🔌</button>
+    <button class="refresh-btn" onclick="fixSheets()" title="แก้ไข Sheets headers">🔧</button>
+    <button class="refresh-btn" onclick="refreshAdminTab()">🔄</button>
+  </div>
+  <!-- Admin sub-tabs -->
+  <div class="admin-tabs-wrap">
+    <div class="admin-tabs">
+      <button class="admin-tab-btn active" onclick="switchAdminTab('admin-price-tab',this)">💰 ยืนยันราคา</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('admin-menu-tab',this)">🍽️ จัดการเมนู</button>
+    </div>
+  </div>
+
+  <!-- TAB: ยืนยันราคา -->
+  <div class="admin-tab-content active" id="admin-price-tab">
+    <div class="admin-phone-bar">
+      <label>📱 PromptPay:</label>
+      <input class="admin-phone-input" type="tel" id="admin-phone" placeholder="เบอร์มือถือ เช่น 0812345678" maxlength="15"
+        onblur="savePhoneNow()" onkeydown="if(event.key==='Enter'){this.blur();}">
+    </div>
+    <div class="page-body">
+      <div id="admin-orders-content"></div>
+      <div id="admin-qr-section" class="qr-section" style="display:none;">
+        <h3>💳 QR PromptPay รายคน</h3>
+        <div class="qr-cards" id="qr-cards-wrap"></div>
+      </div>
+    </div>
+    <div class="admin-confirm-bar" id="admin-confirm-bar" style="display:none;">
+      <div class="admin-total-preview">ยอดจริงรวม <strong id="admin-grand-total">฿0</strong></div>
+      <button class="admin-confirm-btn" onclick="confirmAdminPrices()">✅ ยืนยัน & สร้าง QR</button>
+    </div>
+  </div>
+
+  <!-- TAB: จัดการเมนู -->
+  <div class="admin-tab-content" id="admin-menu-tab">
+    <div class="menu-editor-wrap" id="menu-editor-wrap">
+      <div class="loading-state"><div class="spinner"></div><br>กำลังโหลด...</div>
+    </div>
+    <div class="me-save-bar">
+      <div class="me-save-info" id="me-save-info">แก้ไขเมนูแล้วกดบันทึก</div>
+      <button class="me-save-btn" onclick="saveMenusToSheet()">💾 บันทึกเมนู</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMOJI PICKER -->
+<div class="emoji-picker-overlay" id="emoji-picker-overlay" onclick="closeEmojiIfOutside(event)">
+  <div class="emoji-picker-box">
+    <h4>เลือก Emoji</h4>
+    <div class="emoji-input-row">
+      <input class="emoji-text-input" type="text" id="emoji-custom-input" placeholder="พิมพ์ emoji เอง..." maxlength="4">
+      <button class="emoji-confirm-btn" onclick="pickEmojiCustom()">✓ ใช้</button>
+    </div>
+    <div class="emoji-grid" id="emoji-grid"></div>
+  </div>
+</div>
+
+<!-- EDIT NAME MODAL -->
+<div class="edit-name-overlay" id="edit-name-overlay" onclick="closeEditNameIfOutside(event)">
+  <div class="edit-name-box">
+    <h3>✏️ แก้ไขชื่อ</h3>
+    <input class="edit-name-input" type="text" id="edit-name-input" maxlength="30" placeholder="ชื่อของคุณ">
+    <div class="edit-name-btns">
+      <button class="edit-name-cancel" onclick="closeEditName()">ยกเลิก</button>
+      <button class="edit-name-save" onclick="saveName()">✓ บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM ORDER MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalIfOutside(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>✅ ยืนยันการสั่งอาหาร</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeModal()">ยกเลิก</button>
+      <button class="modal-submit" id="modal-submit-btn" onclick="submitOrder()">📤 ส่งรายการ</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════
+//  CONFIG
+// ════════════════════════════════
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxbqpxW808gr-iWr-4KNN8qTCLsfYN2nXBxvaWlU31Xj6FnsXgMqP01s_od_A5zr-0W/exec';
+
+// ════════════════════════════════
+//  STATE
+// ════════════════════════════════
+let currentUser = '';
+let localCart   = {};
+// Dynamic menu: [{restaurant, restaurantEmoji, category, id, name, desc, price, emoji, tag}]
+let menuData    = [];
+let menuMap     = {}; // id→item, always in sync with menuData
+// Admin editing copy
+let editingMenus = {}; // {restName: {emoji, categories: {catName: [{id,name,desc,price,emoji,tag}]}}}
+let adminRows   = [];
+
+// emoji callback
+let emojiPickerTarget = null; // { type:'rest'|'item', restKey, catKey, idx }
+
+// ════════════════════════════════
+//  JSONP
+// ════════════════════════════════
+function jsonpFetch(url) {
+  return new Promise((resolve, reject) => {
+    const cb = '_cb' + Date.now() + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 14000);
+    function cleanup() { clearTimeout(timer); delete window[cb]; if (script.parentNode) script.parentNode.removeChild(script); }
+    window[cb] = data => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error('script error')); };
+    script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+    document.head.appendChild(script);
+  });
+}
+
+// ════════════════════════════════
+//  REGISTER
+// ════════════════════════════════
+document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+
+function doRegister() {
+  const val = document.getElementById('name-input').value.trim();
+  if (!val) { showToast('⚠️ กรุณาใส่ชื่อก่อน', 'error'); return; }
+  currentUser = val;
+  localStorage.setItem('food_order_name', currentUser);
+  document.getElementById('display-name').textContent = currentUser;
+  showPage('page-menu');
+  renderAllGrids();
+}
+
+// ════════════════════════════════
+//  EDIT NAME
+// ════════════════════════════════
+function editName() {
+  document.getElementById('edit-name-input').value = currentUser;
+  document.getElementById('edit-name-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('edit-name-input').focus(), 80);
+}
+function closeEditName() { document.getElementById('edit-name-overlay').classList.remove('show'); }
+function closeEditNameIfOutside(e) { if (e.target.id === 'edit-name-overlay') closeEditName(); }
+function saveName() {
+  const val = document.getElementById('edit-name-input').value.trim();
+  if (!val) { showToast('⚠️ กรุณาใส่ชื่อก่อน', 'error'); return; }
+  currentUser = val;
+  localStorage.setItem('food_order_name', currentUser);
+  document.getElementById('display-name').textContent = currentUser;
+  closeEditName();
+  showToast('✅ บันทึกชื่อแล้ว', 'success');
+}
+
+// ════════════════════════════════
+//  NAV
+// ════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function goBack() { showPage('page-menu'); }
+function goToAllOrders() { showPage('page-allorders'); refreshAllOrders(); }
+function goToAdmin() { showPage('page-admin'); loadAdminPriceTab(); }
+function switchAdminTab(id, btn) {
+  document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'admin-menu-tab') renderMenuEditor();
+}
+function refreshAdminTab() {
+  const active = document.querySelector('.admin-tab-content.active');
+  if (active && active.id === 'admin-menu-tab') loadMenusFromSheet();
+  else loadAdminPriceTab();
+}
+
+// ════════════════════════════════
+//  BUILD MENU TABS FROM DATA
+// ════════════════════════════════
+function buildMenuFromData(data) {
+  menuData = data;
+  menuMap = {};
+  data.forEach(function(i){ menuMap[i.id] = i; });
+  const tabsEl    = document.getElementById('menu-tabs');
+  const contentsEl = document.getElementById('menu-tab-contents');
+  tabsEl.innerHTML = '';
+  contentsEl.innerHTML = '';
+
+  if (!data.length) {
+    contentsEl.innerHTML = '<div class="empty-menu-hint">ยังไม่มีเมนู — ไปที่ 🔧 Admin เพื่อเพิ่มเมนูก่อน</div>';
+    return;
+  }
+
+  // Group: restaurant -> category -> items
+  const restMap = {};
+  for (const item of data) {
+    if (!restMap[item.restaurant]) restMap[item.restaurant] = { emoji: item.restaurantEmoji||'🍽️', cats: {} };
+    if (!restMap[item.restaurant].cats[item.category]) restMap[item.restaurant].cats[item.category] = [];
+    restMap[item.restaurant].cats[item.category].push(item);
+  }
+
+  let first = true;
+  for (const [restName, restVal] of Object.entries(restMap)) {
+    const tabId = 'tab-' + restName.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
+    // Tab button
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (first ? ' active' : '');
+    btn.innerHTML = restVal.emoji + ' ' + restName;
+    btn.onclick = function() { switchMenuTab(tabId, btn); };
+    tabsEl.appendChild(btn);
+
+    // Tab content
+    const cont = document.createElement('div');
+    cont.className = 'tab-content' + (first ? ' active' : '');
+    cont.id = tabId;
+    let html = '';
+    for (const [catName, items] of Object.entries(restVal.cats)) {
+      html += '<div class="section-title">' + catName + '</div>';
+      html += '<div class="menu-grid" id="grid-' + escId(restName + '_' + catName) + '">';
+      html += items.map(item => cardHTML(item)).join('');
+      html += '</div>';
+    }
+    cont.innerHTML = html;
+    contentsEl.appendChild(cont);
+    first = false;
+  }
+}
+
+function escId(s) { return s.replace(/[^a-zA-Z0-9ก-๙]/g,'_'); }
+
+function switchMenuTab(tabId, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#menu-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ════════════════════════════════
+//  RENDER MENU CARD
+// ════════════════════════════════
+const TAG_LABEL = { rec:'แนะนำ', hot:'ยอดนิยม', new:'ใหม่' };
+
+// Build HTML for one variant button — avoids nested quote hell
+function variantBtnHTML(itemId, vi, label, price, qty) {
+  const enc = encodeURIComponent(label);
+  const minusBtn = qty > 0
+    ? '<button class="qty-btn" style="width:22px;height:22px;font-size:14px;" ' +
+        'onclick="chgVariant(\'' + itemId + '\',' + vi + ',-1,\'' + enc + '\',' + price + ')">−</button>' +
+        '<span class="qty-num">' + qty + '</span>'
+    : '';
+  const plusBtn = '<button class="qty-btn add" style="width:22px;height:22px;font-size:14px;" ' +
+    'onclick="chgVariant(\'' + itemId + '\',' + vi + ',1,\'' + enc + '\',' + price + ')">+</button>';
+  return '<div class="variant-btn' + (qty > 0 ? ' selected' : '') + '">' +
+    '<span class="vb-label">' + label + '</span>' +
+    '<span class="vb-price">฿' + price + '</span>' +
+    '<div class="qty-ctrl" style="margin-top:4px;">' + minusBtn + plusBtn + '</div>' +
+    '</div>';
+}
+
+function cardHTML(item) {
+  const hasVariants = item.variants && item.variants.length > 0;
+  const tag = item.tag ? '<span class="tag tag-'+item.tag+'">'+(TAG_LABEL[item.tag]||'')+'</span>' : '';
+
+  if (hasVariants) {
+    let varBtns = '<div class="variant-btns">';
+    item.variants.forEach(function(v, vi) {
+      const cartKey = item.id + '__v' + vi;
+      const ci = localCart[cartKey];
+      const qty = ci ? ci.qty : 0;
+      varBtns += variantBtnHTML(item.id, vi, v.label, v.price, qty);
+    });
+    varBtns += '</div>';
+    const anyInCart = item.variants.some(function(_,vi){ return !!localCart[item.id+'__v'+vi]; });
+    const firstCart = item.variants.map(function(_,vi){ return localCart[item.id+'__v'+vi]; }).find(function(c){ return c; });
+    const note = firstCart ? (firstCart.note||'') : '';
+    return '<div class="menu-card '+(anyInCart?'in-cart':'')+' " id="card-'+item.id+'">' +
+      '<div class="menu-emoji">'+item.emoji+'</div>' +
+      '<div class="menu-info" style="flex:1">' +
+        '<div class="menu-name">'+item.name+tag+'</div>' +
+        (item.desc?'<div class="menu-desc">'+item.desc+'</div>':'') +
+        varBtns +
+        '<div class="note-row '+(anyInCart?'visible':'')+' " id="nr-'+item.id+'">' +
+          '<input class="note-input" type="text" placeholder="หมายเหตุ..." value="'+note+'" ' +
+          'onchange="updateNoteAll(\''+item.id+'\','+item.variants.length+',this.value)">' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+
+  // Single price
+  const ci = localCart[item.id];
+  const qty = ci ? ci.qty : 0;
+  const note = ci ? (ci.note||'') : '';
+  const ic = qty > 0;
+  return '<div class="menu-card '+(ic?'in-cart':'')+'" id="card-'+item.id+'">'+
+    '<div class="menu-emoji">'+item.emoji+'</div>'+
+    '<div class="menu-info">'+
+      '<div class="menu-name">'+item.name+tag+'</div>'+
+      (item.desc?'<div class="menu-desc">'+item.desc+'</div>':'')+
+      '<div class="menu-price">฿'+item.price+'</div>'+
+      '<div class="note-row '+(ic?'visible':'')+'" id="nr-'+item.id+'">'+
+        '<input class="note-input" type="text" placeholder="หมายเหตุ เช่น ไม่เผ็ด..." value="'+note+'" onchange="updateNote(\''+item.id+'\',this.value)">'+
+      '</div>'+
+    '</div>'+
+    '<div class="qty-ctrl">'+
+      (qty>0?'<button class="qty-btn" onclick="chg(\''+item.id+'\',-1)">−</button><span class="qty-num">'+qty+'</span>':'')+
+      '<button class="qty-btn add" onclick="chg(\''+item.id+'\',1)">+</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function renderAllGrids() {
+  buildMenuFromData(menuData);
+  updateBadge();
+}
+
+function refreshCard(itemId) {
+  const item = menuMap[itemId];
+  if (!item) return;
+  const el = document.getElementById('card-'+itemId);
+  if (!el) return;
+
+  if (item.variants && item.variants.length > 0) {
+    // Re-render variant buttons only
+    let varHTML = '<div class="variant-btns">';
+    item.variants.forEach(function(v, vi) {
+      const qty = (localCart[itemId+'__v'+vi] || {qty:0}).qty;
+      varHTML += variantBtnHTML(itemId, vi, v.label, v.price, qty);
+    });
+    varHTML += '</div>';
+    const vb = el.querySelector('.variant-btns');
+    if (vb) vb.outerHTML = varHTML;
+    const anyInCart = item.variants.some(function(_,vi){ return !!localCart[itemId+'__v'+vi]; });
+    el.classList.toggle('in-cart', anyInCart);
+    const nr = el.querySelector('.note-row');
+    if (nr) nr.classList.toggle('visible', anyInCart);
+  } else {
+    // Single-price: patch qty-ctrl only
+    const ci = localCart[itemId];
+    const qty = ci ? ci.qty : 0;
+    el.classList.toggle('in-cart', qty > 0);
+    const nr = document.getElementById('nr-'+itemId);
+    if (nr) nr.classList.toggle('visible', qty > 0);
+    const qc = el.querySelector('.qty-ctrl');
+    if (!qc) return;
+    const esc = String(itemId).replace(/'/g,"\\'");
+    qc.innerHTML =
+      (qty > 0
+        ? '<button class="qty-btn" onclick="chg(&#39;'+esc+'&#39;,-1)">−</button>' +
+          '<span class="qty-num">'+qty+'</span>'
+        : '') +
+      '<button class="qty-btn add" onclick="chg(&#39;'+esc+'&#39;,1)">+</button>';
+  }
+}
+
+// ════════════════════════════════
+//  CART
+// ════════════════════════════════
+function chg(itemId, delta) {
+  const meta = menuMap[itemId];
+  if (!meta) return;
+  const cur = localCart[itemId] ? localCart[itemId].qty : 0;
+  const nq  = Math.max(0, cur + delta);
+  if (nq === 0) { delete localCart[itemId]; }
+  else { localCart[itemId] = { qty:nq, price:Number(meta.price), name:meta.name, emoji:meta.emoji, restaurant:meta.restaurant, note:localCart[itemId]?localCart[itemId].note:'' }; }
+  refreshCard(itemId);
+  updateMyStats();
+  updateBadge();
+}
+
+function chgVariant(itemId, vi, delta, labelEnc, price) {
+  const meta = menuMap[itemId];
+  if (!meta) return;
+  const label = decodeURIComponent(labelEnc);
+  const cartKey = itemId + '__v' + vi;
+  const cur = localCart[cartKey] ? localCart[cartKey].qty : 0;
+  const nq  = Math.max(0, cur + delta);
+  if (nq === 0) { delete localCart[cartKey]; }
+  else { localCart[cartKey] = { qty:nq, price:Number(price), name:meta.name+' ('+label+')', emoji:meta.emoji, restaurant:meta.restaurant, note:localCart[cartKey]?localCart[cartKey].note:'' }; }
+  refreshCard(itemId);
+  updateMyStats();
+  updateBadge();
+}
+
+function updateNote(itemId, val) { if (localCart[itemId]) localCart[itemId].note = val; }
+function updateNoteAll(itemId, count, val) {
+  for (let vi = 0; vi < count; vi++) {
+    const ck = itemId + '__v' + vi;
+    if (localCart[ck]) localCart[ck].note = val;
+  }
+}
+
+function updateMyStats() {
+  let count=0, total=0;
+  for (const it of Object.values(localCart)) { count+=it.qty; total+=it.qty*it.price; }
+  document.getElementById('my-item-count').textContent = count;
+  document.getElementById('my-total').textContent = '฿'+total;
+  document.getElementById('confirm-btn').disabled = (count===0);
+}
+function updateBadge() {
+  let t=0; for (const it of Object.values(localCart)) t+=it.qty;
+  document.getElementById('cart-badge').textContent = t;
+}
+
+// ════════════════════════════════
+//  CONFIRM MODAL
+// ════════════════════════════════
+function openConfirmModal() {
+  const items = Object.values(localCart).filter(i=>i.qty>0);
+  if (!items.length) return;
+  let rows='', total=0;
+  for (const it of items) {
+    const line=it.qty*it.price; total+=line;
+    rows+='<div class="modal-item-row">'+
+      '<div class="mi-emoji">'+it.emoji+'</div>'+
+      '<div class="mi-info"><div class="mi-name">'+it.name+'</div>'+
+      '<div class="mi-sub">📍 '+it.restaurant+(it.note?' · 📝 '+it.note:'')+'</div></div>'+
+      '<div class="mi-right"><div class="mi-qty">× '+it.qty+'</div><div class="mi-price">฿'+line+'</div></div>'+
+      '</div>';
+  }
+  document.getElementById('modal-body').innerHTML =
+    '<p style="font-size:12px;color:var(--text2);margin-bottom:11px;">ผู้สั่ง: <strong style="color:var(--accent)">👤 '+currentUser+'</strong></p>'+
+    rows+'<div class="modal-total"><span>ยอดรวมของคุณ</span><strong>฿'+total+'</strong></div>';
+  document.getElementById('modal-submit-btn').disabled = false;
+  document.getElementById('modal-submit-btn').innerHTML = '📤 ส่งรายการ';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+function closeModalIfOutside(e) { if (e.target.id==='modal-overlay') closeModal(); }
+
+// ════════════════════════════════
+//  SUBMIT ORDER
+// ════════════════════════════════
+async function submitOrder() {
+  const items = Object.values(localCart).filter(i=>i.qty>0);
+  if (!items.length) return;
+  const btn = document.getElementById('modal-submit-btn');
+  btn.disabled=true; btn.innerHTML='⏳ กำลังส่ง...';
+  const payload = { person:currentUser, items:items.map(i=>({name:i.name,emoji:i.emoji,qty:i.qty,price:i.price,note:i.note||'',restaurant:i.restaurant||''})) };
+  try {
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    localCart={};
+    renderAllGrids(); updateMyStats(); updateBadge(); closeModal();
+    showToast('✅ ส่งรายการเรียบร้อย!','success');
+  } catch(err) {
+    btn.disabled=false; btn.innerHTML='📤 ลองใหม่';
+    showToast('❌ ส่งไม่สำเร็จ','error');
+  }
+}
+
+// ════════════════════════════════
+//  ALL ORDERS
+// ════════════════════════════════
+async function refreshAllOrders() {
+  const el = document.getElementById('allorders-content');
+  el.innerHTML = '<div class="loading-state"><div class="spinner"></div><br>กำลังโหลด...</div>';
+  try {
+    const json = await jsonpFetch(SCRIPT_URL+'?action=get');
+    renderAllOrdersTable(json.rows||[], el);
+  } catch(e) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><p>โหลดไม่สำเร็จ: '+e.message+'</p></div>';
+  }
+}
+function renderAllOrdersTable(rows, container) {
+  if (!rows.length) { container.innerHTML='<div class="empty-state"><div class="empty-icon">🍽️</div><p>ยังไม่มีการสั่งอาหาร</p></div>'; return; }
+  const grouped={};
+  for (const r of rows) { if (!grouped[r.person]) grouped[r.person]=[]; grouped[r.person].push(r); }
+  let gt=0, gq=0;
+  const trs = rows.map(r => {
+    const line=Number(r.total)||(Number(r.qty)*Number(r.price)); gt+=line; gq+=Number(r.qty);
+    return '<tr>'+
+      '<td><div class="td-food"><div class="td-food-emoji">'+(r.emoji||'🍽️')+'</div><div>'+
+      '<div class="td-food-name">'+r.name+'</div>'+(r.note?'<div class="td-food-note">📝 '+r.note+'</div>':'')+
+      '</div></div></td>'+
+      '<td class="center"><span class="td-qty">'+r.qty+'</span></td>'+
+      '<td class="center"><span class="td-price">'+line+'</span></td>'+
+      '<td class="center"><span class="td-person">👤 '+r.person+'</span></td>'+
+      '<td class="center"><span class="td-restaurant">'+(r.restaurant||'')+'</span></td>'+
+      '<td class="center"><span class="td-time">'+r.timestamp+'</span></td>'+
+      '</tr>';
+  }).join('');
+  const personSums = Object.entries(grouped).map(([person,items]) => {
+    const sub=items.reduce((s,r)=>s+(Number(r.total)||(Number(r.qty)*Number(r.price))),0);
+    return '<div class="person-sum-pill"><span class="td-person">👤 '+person+'</span><span class="person-sum-price">฿'+sub+'</span></div>';
+  }).join('');
+  container.innerHTML =
+    '<div class="order-table-wrap"><table class="order-table"><thead><tr>'+
+    '<th>รายการอาหาร</th><th class="center">จำนวน</th><th class="center">ราคา</th><th class="center">ผู้สั่ง</th><th class="center">ร้าน</th><th class="center">เวลา</th>'+
+    '</tr></thead><tbody>'+trs+'</tbody></table>'+
+    '<div class="table-footer">'+
+    '<div style="display:flex;gap:14px;flex-wrap:wrap;"><span class="stat-pill">👥 <strong>'+Object.keys(grouped).length+'</strong> คน</span><span class="stat-pill">🍽️ <strong>'+gq+'</strong> รายการ</span></div>'+
+    '<div class="table-footer-total">฿'+gt+'</div></div></div>'+
+    '<div class="person-sums-wrap">'+personSums+'</div>'+
+    '<button class="clear-btn" onclick="clearAllSheetOrders()">🗑️ ล้างรายการทั้งหมด (เริ่มรอบใหม่)</button>';
+}
+async function clearAllSheetOrders() {
+  if (!confirm('⚠️ ล้างรายการทั้งหมดใน Google Sheets ใช่ไหม?\n(ไม่สามารถกู้คืนได้)')) return;
+  try { await jsonpFetch(SCRIPT_URL+'?action=clear'); showToast('🗑️ ล้างรายการแล้ว','success'); refreshAllOrders(); }
+  catch(e) { showToast('❌ ล้างไม่สำเร็จ','error'); }
+}
+
+// ════════════════════════════════
+//  ADMIN PRICE TAB
+// ════════════════════════════════
+async function loadAdminPriceTab() {
+  const el = document.getElementById('admin-orders-content');
+  document.getElementById('admin-qr-section').style.display='none';
+  document.getElementById('admin-confirm-bar').style.display='none';
+  el.innerHTML='<div class="loading-state"><div class="spinner"></div><br>กำลังโหลด...</div>';
+  const savedPhone=localStorage.getItem('food_order_phone');
+  if (savedPhone) document.getElementById('admin-phone').value=savedPhone;
+  fetchPhoneFromSheet();
+  try {
+    const json=await jsonpFetch(SCRIPT_URL+'?action=get');
+    adminRows=json.rows||[];
+    renderAdminTable(adminRows,el);
+  } catch(e) { el.innerHTML='<div class="empty-state"><div class="empty-icon">❌</div><p>โหลดไม่สำเร็จ</p></div>'; }
+}
+function renderAdminTable(rows,container) {
+  if (!rows.length) { container.innerHTML='<div class="empty-state"><div class="empty-icon">🍽️</div><p>ยังไม่มีการสั่งอาหาร</p></div>'; document.getElementById('admin-confirm-bar').style.display='none'; return; }
+  const trs=rows.map((r,idx)=>{
+    const orig=Number(r.total)||(Number(r.qty)*Number(r.price));
+    return '<tr>'+
+      '<td><div class="td-food"><div class="td-food-emoji">'+(r.emoji||'🍽️')+'</div><div>'+
+      '<div class="td-food-name">'+r.name+'</div>'+(r.note?'<div class="td-food-note">📝 '+r.note+'</div>':'')+
+      '</div></div></td>'+
+      '<td class="center"><span class="td-qty">'+r.qty+'</span></td>'+
+      '<td class="center"><span class="td-person">👤 '+r.person+'</span></td>'+
+      '<td class="center"><span class="td-restaurant">'+(r.restaurant||'')+'</span></td>'+
+      '<td class="center">'+
+        '<div class="admin-price-orig">฿'+orig+'</div>'+
+        '<input class="admin-price-input" type="number" id="aprice-'+idx+'" value="'+orig+'" min="0" oninput="onAdminPriceChange('+idx+',this)">'+
+      '</td></tr>';
+  }).join('');
+  container.innerHTML='<div class="admin-table-wrap"><table class="admin-table"><thead><tr>'+
+    '<th>รายการอาหาร</th><th class="center">จำนวน</th><th class="center">ผู้สั่ง</th><th class="center">ร้าน</th><th class="center">ราคาจริง (฿)</th>'+
+    '</tr></thead><tbody>'+trs+'</tbody></table></div>';
+  document.getElementById('admin-confirm-bar').style.display='flex';
+  updateAdminGrandTotal();
+}
+function onAdminPriceChange(idx,input) {
+  const orig=Number(adminRows[idx].total)||(Number(adminRows[idx].qty)*Number(adminRows[idx].price));
+  input.classList.toggle('changed',Number(input.value)!==orig);
+  updateAdminGrandTotal();
+}
+function updateAdminGrandTotal() {
+  let total=0;
+  adminRows.forEach((_,idx)=>{ const inp=document.getElementById('aprice-'+idx); total+=inp?(Number(inp.value)||0):0; });
+  const el=document.getElementById('admin-grand-total');
+  if (el) el.textContent='฿'+total;
+}
+function confirmAdminPrices() {
+  const phone=document.getElementById('admin-phone').value.trim().replace(/\D/g,'');
+  if (!phone||phone.length<9) { showToast('⚠️ กรุณากรอกเบอร์ PromptPay ก่อน','error'); return; }
+  savePhone(phone);
+  const personData={};
+  adminRows.forEach((r,idx)=>{
+    const inp=document.getElementById('aprice-'+idx);
+    const actual=inp?(Number(inp.value)||0):0;
+    const orig=Number(r.total)||(Number(r.qty)*Number(r.price));
+    if (!personData[r.person]) personData[r.person]={total:0,items:[]};
+    personData[r.person].total+=actual;
+    personData[r.person].items.push({emoji:r.emoji||'🍽️',name:r.name,qty:r.qty,orig,actual});
+  });
+  const wrap=document.getElementById('qr-cards-wrap');
+  wrap.innerHTML='';
+  Object.entries(personData).forEach(([person,data])=>{
+    const amount=data.total;
+    const qrUrl='https://promptpay.io/'+phone+'/'+amount;
+    const itemRows=data.items.map(it=>
+      '<div class="qr-item-row"><span class="qr-item-name">'+it.emoji+' '+it.name+' ×'+it.qty+'</span>'+
+      '<span>'+(it.actual!==it.orig?'<s style="color:var(--text3);font-size:10px;">฿'+it.orig+'</s> ':'')+' ฿'+it.actual+'</span></div>'
+    ).join('');
+    const card=document.createElement('div');
+    card.className='qr-card';
+    card.innerHTML=
+      '<div class="qr-card-header"><div class="qr-card-name">👤 '+person+'</div><div class="qr-card-amount">฿'+amount+'</div></div>'+
+      '<div class="qr-img-wrap"><a href="'+qrUrl+'.png" target="_blank"><img src="'+qrUrl+'.png" alt="QR" style="width:180px;height:180px;"></a></div>'+
+      '<div class="qr-items-list">'+itemRows+'</div>'+
+      '<div style="display:flex;gap:8px;margin:0 14px 14px;">'+
+        '<button class="qr-save-btn" style="flex:1" onclick="downloadQR(\''+qrUrl+'.png\',\'QR_'+person+'_'+amount+'THB.png\')">💾 บันทึก QR</button>'+
+        '<button class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(\''+qrUrl+'\',\'_blank\')">🔗 เปิด QR</button>'+
+      '</div>';
+    wrap.appendChild(card);
+  });
+  document.getElementById('admin-qr-section').style.display='block';
+  document.getElementById('admin-qr-section').scrollIntoView({behavior:'smooth'});
+  showToast('✅ สร้าง QR เรียบร้อย!','success');
+}
+function savePhoneNow() {
+  const phone = document.getElementById('admin-phone').value.trim().replace(/\D/g,'');
+  if (phone && phone.length >= 9) {
+    savePhone(phone);
+    showToast('✅ บันทึกเบอร์ PromptPay แล้ว', 'success');
+  }
+}
+function savePhone(phone) {
+  localStorage.setItem('food_order_phone',phone);
+  jsonpFetch(SCRIPT_URL+'?action=savePhone&phone='+encodeURIComponent(phone)).catch(()=>{});
+}
+async function fetchPhoneFromSheet() {
+  try {
+    const json=await jsonpFetch(SCRIPT_URL+'?action=getPhone');
+    if (json.phone) {
+      localStorage.setItem('food_order_phone',json.phone);
+      const el=document.getElementById('admin-phone');
+      if (el&&!el.value) el.value=json.phone;
+    }
+  } catch(e) {}
+}
+
+// ════════════════════════════════
+//  LOAD MENUS FROM SHEET
+// ════════════════════════════════
+async function loadMenusFromSheet() {
+  const wrap = document.getElementById('menu-editor-wrap');
+  if (wrap) wrap.innerHTML = '<div class="loading-state"><div class="spinner"></div><br>กำลังโหลดเมนู...</div>';
+  try {
+    const json = await jsonpFetch(SCRIPT_URL+'?action=getMenus');
+    const rows = json.rows || [];
+    if (rows.length) {
+      menuData = rows;
+      renderAllGrids();
+    }
+    buildEditingMenus(rows);
+    renderMenuEditor();
+  } catch(e) {
+    if (wrap) wrap.innerHTML='<div class="empty-state"><div class="empty-icon">❌</div><p>โหลดเมนูไม่สำเร็จ</p></div>';
+    showToast('❌ โหลดเมนูไม่สำเร็จ: '+e.message,'error');
+  }
+}
+
+function buildEditingMenus(rows) {
+  editingMenus = {};
+  for (const r of rows) {
+    const rest = r.restaurant || 'ร้านไม่ระบุ';
+    const cat  = (r.category && r.category !== 'undefined') ? r.category : 'หมวดหมู่';
+    if (!editingMenus[rest]) editingMenus[rest] = { emoji: r.restaurantEmoji||'🍽️', categories: {} };
+    if (!editingMenus[rest].categories[cat]) editingMenus[rest].categories[cat] = [];
+    editingMenus[rest].categories[cat].push({
+      id: r.id||('item_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)),
+      name: r.name||'', desc: r.desc||'', price: r.price||0,
+      emoji: r.emoji||'🍽️', tag: r.tag||'',
+      variants: r.variants || []
+    });
+  }
+}
+
+// ════════════════════════════════
+//  MENU EDITOR RENDER
+// ════════════════════════════════
+function renderMenuEditor() {
+  const wrap = document.getElementById('menu-editor-wrap');
+  if (!wrap) return;
+
+  let html = '<div class="me-toolbar"><h3>🍽️ จัดการเมนู</h3>'+
+    '<button class="me-add-rest-btn" onclick="addRestaurant()">+ เพิ่มร้าน</button></div>';
+
+  // Clean up any "undefined" keys from category names
+  for (const rk of Object.keys(editingMenus)) {
+    const cats = editingMenus[rk].categories;
+    if (cats['undefined']) {
+      const items = cats['undefined'];
+      delete cats['undefined'];
+      cats['หมวดหมู่'] = cats['หมวดหมู่'] ? cats['หมวดหมู่'].concat(items) : items;
+    }
+  }
+  const restKeys = Object.keys(editingMenus);
+  if (!restKeys.length) {
+    html += '<div class="empty-state"><div class="empty-icon">🏪</div><p>ยังไม่มีร้านค้า<br>กด + เพิ่มร้าน</p></div>';
+  } else {
+    for (const restKey of restKeys) {
+      const rest = editingMenus[restKey];
+      const catKeys = Object.keys(rest.categories);
+      html += '<div class="me-restaurant-card" id="me-rest-'+escId(restKey)+'">';
+      html += '<div class="me-rest-header">'+
+        '<button class="me-rest-emoji-btn" onclick="openEmojiPicker({type:\'rest\',restKey:\''+escAttr(restKey)+'\'})">'+rest.emoji+'</button>'+
+        '<input class="me-rest-name-input" type="text" value="'+escAttr(restKey)+'" placeholder="ชื่อร้าน" onblur="renameRestaurant(\''+escAttr(restKey)+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()">'+
+        '<div class="me-rest-actions">'+
+          '<button class="me-icon-btn" onclick="addCategory(\''+escAttr(restKey)+'\')">+ หมวด</button>'+
+          '<button class="me-icon-btn danger" onclick="deleteRestaurant(\''+escAttr(restKey)+'\')">🗑️</button>'+
+        '</div>'+
+      '</div>';
+      html += '<div class="me-rest-body">';
+      for (const catKey of catKeys) {
+        const items = rest.categories[catKey];
+        html += '<div class="me-category-block" id="me-cat-'+escId(restKey+'_'+catKey)+'">';
+        html += '<div class="me-cat-header">'+
+          '<input class="me-cat-name-input" type="text" value="'+escAttr(catKey)+'" placeholder="ชื่อหมวดหมู่" onblur="renameCategory(\''+escAttr(restKey)+'\',\''+escAttr(catKey)+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()">'+
+          '<button class="me-icon-btn danger" onclick="deleteCategory(\''+escAttr(restKey)+'\',\''+escAttr(catKey)+'\')">🗑️</button>'+
+        '</div>';
+        html += '<div class="me-items-list">';
+        items.forEach(function(item, idx) {
+          const rk = escAttr(restKey), ck = escAttr(catKey);
+          const hasVariants = item.variants && item.variants.length > 0;
+
+          // Build variants editor
+          let varHtml = '';
+          if (hasVariants) {
+            varHtml += '<div style="grid-column:1/-1;margin-top:4px;background:rgba(245,166,35,0.05);border-radius:8px;padding:7px 10px;">';
+            varHtml += '<div style="font-size:10px;color:var(--text3);margin-bottom:5px;letter-spacing:.5px;">ตัวเลือกราคา</div>';
+            item.variants.forEach(function(v, vi) {
+              varHtml += '<div class="variant-row">'+
+                '<input class="variant-label-input" type="text" value="'+escAttr(v.label)+'" placeholder="ชื่อขนาด เช่น ธรรมดา" onchange="updateVariant(\''+rk+'\',\''+ck+'\','+idx+','+vi+',\'label\',this.value)">'+
+                '<input class="variant-price-input" type="number" value="'+v.price+'" min="0" placeholder="ราคา" onchange="updateVariant(\''+rk+'\',\''+ck+'\','+idx+','+vi+',\'price\',this.value)">'+
+                '<button class="variant-del-btn" onclick="deleteVariant(\''+rk+'\',\''+ck+'\','+idx+','+vi+')">✕</button>'+
+              '</div>';
+            });
+            varHtml += '<button class="add-variant-btn" onclick="addVariant(\''+rk+'\',\''+ck+'\','+idx+')">+ เพิ่มตัวเลือก</button>';
+            varHtml += '</div>';
+          }
+
+          // Price field: show only if no variants
+          const priceField = hasVariants ? '' :
+            '<input class="me-item-price" type="number" value="'+item.price+'" min="0" placeholder="ราคา" onchange="updateItemField(\''+rk+'\',\''+ck+'\','+idx+',\'price\',this.value)">';
+
+          html += '<div class="me-item-row" id="me-item-'+escId(restKey+'_'+catKey)+'_'+idx+'">'+
+            '<button class="me-item-emoji-btn" onclick="openEmojiPicker({type:\'item\',restKey:\''+rk+'\',catKey:\''+ck+'\',idx:'+idx+'})">'+item.emoji+'</button>'+
+            '<div class="me-item-fields">'+
+              '<input class="me-item-name" type="text" value="'+escAttr(item.name)+'" placeholder="ชื่ออาหาร" onchange="updateItemField(\''+rk+'\',\''+ck+'\','+idx+',\'name\',this.value)">'+
+              priceField+
+              '<select class="me-item-tag" onchange="updateItemField(\''+rk+'\',\''+ck+'\','+idx+',\'tag\',this.value)">'+
+                '<option value="" '+((!item.tag||item.tag==='')?'selected':'')+'>ปกติ</option>'+
+                '<option value="rec" '+(item.tag==='rec'?'selected':'')+'>⭐ แนะนำ</option>'+
+                '<option value="hot" '+(item.tag==='hot'?'selected':'')+'>🔥 ยอดนิยม</option>'+
+                '<option value="new" '+(item.tag==='new'?'selected':'')+'>✨ ใหม่</option>'+
+              '</select>'+
+              '<input class="me-item-desc" type="text" value="'+escAttr(item.desc||'')+'" placeholder="คำอธิบาย (เลือกได้)" onchange="updateItemField(\''+rk+'\',\''+ck+'\','+idx+',\'desc\',this.value)">'+
+              varHtml+
+              (!hasVariants ?
+                '<button class="add-variant-btn" onclick="addVariant(\''+rk+'\',\''+ck+'\','+idx+')">＋ เพิ่มตัวเลือกราคา (เช่น ธรรมดา/พิเศษ)</button>' : '')+
+            '</div>'+
+            '<button class="me-icon-btn danger" onclick="deleteItem(\''+rk+'\',\''+ck+'\','+idx+')">✕</button>'+
+          '</div>';
+        });
+        html += '</div>';
+        html += '<button class="me-add-item-btn" onclick="addItem(\''+escAttr(restKey)+'\',\''+escAttr(catKey)+'\')">+ เพิ่มรายการอาหาร</button>';
+        html += '</div>';
+      }
+      html += '<button class="me-add-cat-btn" onclick="addCategory(\''+escAttr(restKey)+'\')">+ เพิ่มหมวดหมู่</button>';
+      html += '</div></div>';
+    }
+  }
+  wrap.innerHTML = html;
+}
+
+function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+
+// ════════════════════════════════
+//  MENU EDITOR CRUD
+// ════════════════════════════════
+function addRestaurant() {
+  const name = 'ร้านใหม่ ' + (Object.keys(editingMenus).length+1);
+  editingMenus[name] = { emoji:'🍽️', categories:{ 'หมวดหมู่':[] } };
+  renderMenuEditor();
+}
+function deleteRestaurant(restKey) {
+  if (!confirm('ลบร้าน "'+restKey+'" และเมนูทั้งหมดใช่ไหม?')) return;
+  delete editingMenus[restKey];
+  renderMenuEditor();
+}
+function renameRestaurant(oldKey, newKey) {
+  newKey = (newKey || '').trim();
+  if (!newKey || newKey === oldKey || newKey === 'undefined') return;
+  if (editingMenus[newKey]) { showToast('มีชื่อร้านนี้แล้ว','error'); return; }
+  const data = editingMenus[oldKey]; delete editingMenus[oldKey]; editingMenus[newKey] = data;
+  renderMenuEditor();
+}
+function addCategory(restKey) {
+  if (!editingMenus[restKey]) return;
+  let name = 'หมวดหมู่ใหม่', n = 1;
+  while (editingMenus[restKey].categories[name]) name = 'หมวดหมู่ใหม่ '+(n++);
+  editingMenus[restKey].categories[name] = [];
+  renderMenuEditor();
+  // Auto-focus the new category input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.me-cat-name-input');
+    if (inputs.length) inputs[inputs.length-1].focus();
+  }, 100);
+}
+function deleteCategory(restKey, catKey) {
+  if (!confirm('ลบหมวด "'+catKey+'" ใช่ไหม?')) return;
+  delete editingMenus[restKey].categories[catKey];
+  renderMenuEditor();
+}
+function renameCategory(restKey, oldCat, newCat) {
+  newCat = (newCat || '').trim();
+  if (!newCat || newCat === oldCat || newCat === 'undefined') return;
+  const items = editingMenus[restKey].categories[oldCat];
+  delete editingMenus[restKey].categories[oldCat];
+  editingMenus[restKey].categories[newCat] = items;
+  // Don't re-render — just update the key in memory
+  // renderMenuEditor() would reset focus; caller can re-render on blur
+}
+function addItem(restKey, catKey) {
+  editingMenus[restKey].categories[catKey].push({ id:'item_'+Date.now(), name:'อาหารใหม่', desc:'', price:0, emoji:'🍽️', tag:'', variants:[] });
+  renderMenuEditor();
+}
+function deleteItem(restKey, catKey, idx) {
+  editingMenus[restKey].categories[catKey].splice(idx,1);
+  renderMenuEditor();
+}
+function updateItemField(restKey, catKey, idx, field, val) {
+  if (!editingMenus[restKey] || !editingMenus[restKey].categories[catKey]) return;
+  editingMenus[restKey].categories[catKey][idx][field] = (field==='price') ? Number(val)||0 : val;
+}
+// Variant CRUD
+function addVariant(restKey, catKey, idx) {
+  const item = editingMenus[restKey].categories[catKey][idx];
+  if (!item.variants) item.variants = [];
+  item.variants.push({ label: item.variants.length===0 ? 'ธรรมดา' : 'พิเศษ', price: item.price||0 });
+  renderMenuEditor();
+}
+function deleteVariant(restKey, catKey, idx, vi) {
+  editingMenus[restKey].categories[catKey][idx].variants.splice(vi,1);
+  renderMenuEditor();
+}
+function updateVariant(restKey, catKey, idx, vi, field, val) {
+  const v = editingMenus[restKey].categories[catKey][idx].variants[vi];
+  if (!v) return;
+  v[field] = (field==='price') ? Number(val)||0 : val;
+}
+
+// ════════════════════════════════
+//  EMOJI PICKER
+// ════════════════════════════════
+const EMOJI_PRESETS = ['🍜','🍛','🍚','🍗','🍖','🥩','🥓','🍱','🥗','🍝','🍣','🍔','🌯','🥙','🍢','🍡',
+  '🧆','🥚','🍳','🥞','🥤','🧋','🥛','☕','🍵','💧','🥤','🧃','🍺','🫖',
+  '🏪','🥘','🫕','🫙','🧇','🌮','🥪','🍕','🌶️','🧅','🧄','🫚','🥬','🥦'];
+
+function openEmojiPicker(target) {
+  emojiPickerTarget = target;
+  document.getElementById('emoji-custom-input').value = '';
+  const grid = document.getElementById('emoji-grid');
+  grid.innerHTML = EMOJI_PRESETS.map(e => '<button onclick="pickEmoji(\''+e+'\')">'+e+'</button>').join('');
+  document.getElementById('emoji-picker-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('emoji-custom-input').focus(), 100);
+}
+function closeEmojiIfOutside(e) { if (e.target.id==='emoji-picker-overlay') closeEmojiPicker(); }
+function closeEmojiPicker() { document.getElementById('emoji-picker-overlay').classList.remove('show'); }
+function pickEmojiCustom() { const v=document.getElementById('emoji-custom-input').value.trim(); if(v) pickEmoji(v); }
+function pickEmoji(emoji) {
+  if (!emojiPickerTarget) return;
+  const t = emojiPickerTarget;
+  if (t.type==='rest') editingMenus[t.restKey].emoji=emoji;
+  else if (t.type==='item') editingMenus[t.restKey].categories[t.catKey][t.idx].emoji=emoji;
+  closeEmojiPicker();
+  renderMenuEditor();
+}
+
+// ════════════════════════════════
+//  SAVE MENUS TO SHEET
+// ════════════════════════════════
+// Fallback: save menus via chunked JSONP GET (when POST fails)
+// ════════════════════════════════
+//  SAVE MENUS — item-by-item JSONP GET (most reliable, no URL limit)
+// ════════════════════════════════
+async function saveMenusToSheet() {
+  const btn  = document.querySelector('.me-save-btn');
+  const info = document.getElementById('me-save-info');
+  btn.disabled = true;
+
+  // Build flat row list
+  const rows = [];
+  for (const [restName, restVal] of Object.entries(editingMenus)) {
+    for (const [catName, items] of Object.entries(restVal.categories)) {
+      for (const item of items) {
+        const itemName = (item.name||'').trim();
+        if (!itemName) continue; // skip blank name
+        rows.push({
+          id:             item.id || ('item_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)),
+          restaurant:     restName,
+          restaurantEmoji:restVal.emoji || '🍽️',
+          category:       catName,
+          name:           item.name || '',
+          desc:           item.desc || '',
+          price:          Number(item.price) || 0,
+          emoji:          item.emoji || '🍽️',
+          tag:            item.tag  || '',
+          variants:       item.variants || []
+        });
+      }
+    }
+  }
+
+  if (!rows.length) {
+    showToast('⚠️ ไม่มีรายการอาหาร', 'error');
+    btn.disabled = false; btn.innerHTML = '💾 บันทึกเมนู';
+    return;
+  }
+
+  // Update local state + localStorage immediately
+  menuData = rows;
+  renderAllGrids();
+  try { localStorage.setItem('menu_data_v2', JSON.stringify(rows)); } catch(x) {}
+
+  try {
+    btn.innerHTML = '⏳ กำลังบันทึก...';
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify({action:'saveMenus', rows:rows})
+    });
+    showToast('✅ บันทึก ' + rows.length + ' รายการแล้ว!', 'success');
+    if (info) info.textContent = 'บันทึกล่าสุด: ' + new Date().toLocaleTimeString('th-TH');
+  } catch(e) {
+    showToast('❌ ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '💾 บันทึกเมนู';
+}
+
+
+
+
+// ════════════════════════════════
+//  TOAST
+// ════════════════════════════════
+// Fix Sheets (insert missing headers)
+async function fixSheets() {
+  showToast('⏳ กำลังแก้ไข Sheets...', 'success');
+  try {
+    const res = await jsonpFetch(SCRIPT_URL + '?action=fixSheets');
+    if (res.success) {
+      showToast('✅ แก้ไขแล้ว: ' + (res.fixed||[]).join(', '), 'success');
+    } else {
+      showToast('❌ ' + (res.error||'fail'), 'error');
+    }
+    console.log('fixSheets:', res);
+  } catch(e) {
+    showToast('❌ ' + e.message, 'error');
+  }
+}
+
+// Test connection to Apps Script
+async function testConnection() {
+  const btn = document.getElementById('test-conn-btn');
+  const orig = btn.textContent;
+  btn.textContent = '⏳';
+  try {
+    const res = await jsonpFetch(SCRIPT_URL + '?action=ping');
+    showToast('✅ เชื่อมต่อได้! v' + (res.v||'?'), 'success');
+    console.log('Ping result:', res);
+  } catch(e) {
+    showToast('❌ เชื่อมต่อไม่ได้: ' + e.message, 'error');
+    console.error('Ping error:', e);
+  }
+  btn.textContent = orig;
+}
+
+// Download QR as blob (cross-origin workaround)
+async function downloadQR(url, filename) {
+  try {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch(e) {
+    // CORS blocked — open in new tab, user can save manually
+    window.open(url, '_blank');
+    showToast('กดค้างที่รูปแล้วเลือก "บันทึกรูปภาพ"', 'success');
+  }
+}
+
+let _tt;
+function showToast(msg,type='success') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+type+' show';
+  clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ════════════════════════════════
+//  INIT
+// ════════════════════════════════
+(async function init() {
+  // isMenuRow: validate it's menu data not orders data
+  // Menu rows have 'category' + 'id', orders have 'timestamp' + 'person'
+  function isMenuRow(r) { return r && r.category !== undefined && r.id && !r.timestamp; }
+
+  let loaded = false;
+
+  // 1. Try Sheets (only use if data looks like menus)
+  try {
+    const json = await jsonpFetch(SCRIPT_URL + '?action=getMenus');
+    if (json.rows && json.rows.length && isMenuRow(json.rows[0])) {
+      menuData = json.rows; buildEditingMenus(json.rows); loaded = true;
+    }
+  } catch(e) {}
+
+  // 2. localStorage fallback
+  if (!loaded) {
+    try {
+      const ls = localStorage.getItem('menu_data_v2');
+      if (ls) {
+        const rows = JSON.parse(ls);
+        if (rows.length && isMenuRow(rows[0])) {
+          menuData = rows; buildEditingMenus(rows); loaded = true;
+        }
+      }
+    } catch(e) {}
+  }
+
+  // 3. Built-in defaults
+  if (!loaded) { loadDefaultMenus(); }
+
+  // Auto-skip register if name saved
+  const saved = localStorage.getItem('food_order_name');
+  if (saved) {
+    currentUser = saved;
+    document.getElementById('display-name').textContent = saved;
+    showPage('page-menu');
+  }
+  renderAllGrids();
+})();
+
+function loadDefaultMenus() {
+  const defaults = [
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🍜',category:'ข้าวและเส้น',id:'bn01',name:'ก๋วยเตี๋ยวหมู',desc:'น้ำใส / น้ำตก / แห้ง',price:50,emoji:'🍜',tag:'rec'},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🍜',category:'ข้าวและเส้น',id:'bn02',name:'ก๋วยเตี๋ยวไก่',desc:'น้ำใส / แห้ง',price:50,emoji:'🍜',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🍜',category:'ข้าวและเส้น',id:'bn03',name:'ข้าวมันไก่',desc:'ไก่ต้ม / ไก่ทอด',price:55,emoji:'🍗',tag:'rec'},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🍜',category:'ข้าวและเส้น',id:'bn04',name:'ข้าวหมูแดง',desc:'',price:55,emoji:'🍖',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🍜',category:'ข้าวและเส้น',id:'bn05',name:'ข้าวหมูกรอบ',desc:'',price:55,emoji:'🍖',tag:'hot'},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🍜',category:'ของทาน',id:'bn06',name:'ลูกชิ้นทอด',desc:'5 ชิ้น',price:25,emoji:'🍡',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🍜',category:'ของทาน',id:'bn07',name:'หมูทอด',desc:'',price:35,emoji:'🥩',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🍜',category:'เครื่องดื่ม',id:'bn08',name:'น้ำเปล่า',desc:'',price:10,emoji:'💧',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🍜',category:'เครื่องดื่ม',id:'bn09',name:'ชาเย็น',desc:'',price:25,emoji:'🧋',tag:'rec'},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🍜',category:'เครื่องดื่ม',id:'bn10',name:'โอเลี้ยง',desc:'',price:25,emoji:'☕',tag:''},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🥩',category:'เนื้อย่าง',id:'hm01',name:'หมูย่าง',desc:'ไม้ / แผ่น',price:15,emoji:'🥩',tag:'hot'},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🥩',category:'เนื้อย่าง',id:'hm02',name:'หมูสามชั้นย่าง',desc:'หัวหมู / สามชั้น',price:20,emoji:'🥓',tag:''},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🥩',category:'เนื้อย่าง',id:'hm03',name:'ไก่ย่าง',desc:'ปีก / น่อง / อก',price:35,emoji:'🍗',tag:'rec'},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🥩',category:'ข้าว / เส้น',id:'hm04',name:'ข้าวเปล่า',desc:'',price:10,emoji:'🍚',tag:''},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🥩',category:'ข้าว / เส้น',id:'hm05',name:'ข้าวเหนียว',desc:'',price:10,emoji:'🍙',tag:''},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🥩',category:'เครื่องดื่ม',id:'hm06',name:'น้ำเปล่า',desc:'',price:10,emoji:'💧',tag:''},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🥩',category:'เครื่องดื่ม',id:'hm07',name:'น้ำอัดลม',desc:'โค้ก / เป๊ปซี่ / สไปร์ท',price:20,emoji:'🥤',tag:''},
+  ];
+  menuData = defaults;
+  buildEditingMenus(defaults);
+}
+</script>
+</body>
+</html>
