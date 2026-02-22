@@ -987,51 +987,27 @@ function confirmAdminPrices() {
   document.getElementById('admin-qr-section').style.display='block';
   document.getElementById('admin-qr-section').scrollIntoView({behavior:'smooth'});
 
-  // Save notification per person — check ack first to avoid resetting paid status
+  // Save notification per person
+  // ถ้ากรอบ UI เป็นสีเขียวอยู่แล้ว (paid) → ข้ามเลย ไม่ส่งซ้ำ
   const ts = String(Date.now());
   const notifiedPersons = Object.keys(personData);
 
-  // Check all ack statuses first, then decide per person
-  (async () => {
-    for (const [person, data] of Object.entries(personData)) {
-      const qrUrl  = 'https://promptpay.io/' + phone + '/' + data.total + '.png';
-      const notifKey = encodeURIComponent('qr_' + person);
-      const ackKey   = encodeURIComponent('qr_ack_' + person);
-      const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
+  Object.entries(personData).forEach(([person, data]) => {
+    const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
+    const card = document.querySelector('.qr-card[data-person="' + person + '"]');
 
-      try {
-        // Check if this person already paid for a previous batch
-        const ack = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey);
-        const prevNotif = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + notifKey);
+    // ถ้า card มี .paid อยู่แล้ว → ไม่ส่งแจ้งเตือนใหม่
+    if (card && card.classList.contains('paid')) return;
 
-        const alreadyPaid = ack && ack.value === 'paid'
-                         && prevNotif && prevNotif.ts
-                         && ack.ts >= prevNotif.ts;
+    const qrUrl    = 'https://promptpay.io/' + phone + '/' + data.total + '.png';
+    const notifKey = encodeURIComponent('qr_' + person);
+    const ackKey   = encodeURIComponent('qr_ack_' + person);
+    const notifVal = JSON.stringify({ person, amount: data.total, qrUrl, ts, items: data.items });
+    jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + notifKey + '&value=' + encodeURIComponent(notifVal) + '&ts=' + ts).catch(()=>{});
+    jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + ackKey   + '&value=pending&ts=' + ts).catch(()=>{});
+  });
 
-        if (alreadyPaid) {
-          // Already paid — just restore green UI, don't re-notify
-          const card = document.querySelector('.qr-card[data-person="' + person + '"]');
-          if (card) {
-            card.classList.add('paid');
-            const badge = document.getElementById('paid-badge-' + personId);
-            if (badge) badge.innerHTML = '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>';
-          }
-        } else {
-          // Not yet paid — send new notification (preserve existing ts if notif unchanged)
-          const notifVal = JSON.stringify({ person, amount: data.total, qrUrl, ts, items: data.items });
-          jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + notifKey + '&value=' + encodeURIComponent(notifVal) + '&ts=' + ts).catch(()=>{});
-          // Only reset ack if not paid
-          jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + ackKey + '&value=pending&ts=' + ts).catch(()=>{});
-        }
-      } catch(e) {
-        // On error, just send notification normally
-        const notifVal = JSON.stringify({ person, amount: data.total, qrUrl, ts, items: data.items });
-        jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + notifKey + '&value=' + encodeURIComponent(notifVal) + '&ts=' + ts).catch(()=>{});
-      }
-    }
-    startAdminAckPolling(notifiedPersons, ts);
-  })();
-
+  startAdminAckPolling(notifiedPersons, ts);
   showToast('✅ สร้าง QR และแจ้งเตือนแล้ว!', 'success');
 }
 
