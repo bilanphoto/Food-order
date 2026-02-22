@@ -891,7 +891,7 @@ function renderAllOrdersTable(rows, container) {
 }
 async function clearAllSheetOrders() {
   if (!confirm('⚠️ ล้างรายการทั้งหมดใน Google Sheets ใช่ไหม?\n(ไม่สามารถกู้คืนได้)')) return;
-  try { await jsonpFetch(SCRIPT_URL+'?action=clear'); showToast('🗑️ ล้างรายการแล้ว','success'); refreshAllOrders(); }
+  try { await jsonpFetch(SCRIPT_URL+'?action=clear'); localStorage.removeItem('admin_paid'); showToast('🗑️ ล้างรายการแล้ว','success'); refreshAllOrders(); }
   catch(e) { showToast('❌ ล้างไม่สำเร็จ','error'); }
 }
 
@@ -960,21 +960,28 @@ function confirmAdminPrices() {
   });
   const wrap=document.getElementById('qr-cards-wrap');
   wrap.innerHTML='';
+
+  // Load paid set from localStorage (persists across refresh)
+  // Key: 'admin_paid' = JSON {person: notifTs} meaning this person paid at this ts
+  let paidMap = {};
+  try { paidMap = JSON.parse(localStorage.getItem('admin_paid') || '{}'); } catch(e) {}
+
   Object.entries(personData).forEach(([person,data])=>{
     const amount=data.total;
     const qrUrl='https://promptpay.io/'+phone+'/'+amount;
+    const personId=person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
     const itemRows=data.items.map(it=>
       '<div class="qr-item-row"><span class="qr-item-name">'+it.emoji+' '+it.name+' ×'+it.qty+'</span>'+
       '<span>'+(it.actual!==it.orig?'<s style="color:var(--text3);font-size:10px;">฿'+it.orig+'</s> ':'')+' ฿'+it.actual+'</span></div>'
     ).join('');
     const card=document.createElement('div');
-    card.className='qr-card';
+    card.className='qr-card' + (paidMap[person] ? ' paid' : '');
     card.setAttribute('data-person', person);
     card.innerHTML=
       '<div class="qr-card-header">'+
         '<div class="qr-card-name">👤 '+person+'</div>'+
         '<div class="qr-card-amount">฿'+amount+'</div>'+
-        '<div id="paid-badge-'+person.replace(/[^a-zA-Z0-9ก-๙]/g,'_')+'"></div>'+
+        '<div id="paid-badge-'+personId+'">'+(paidMap[person]?'<span class="qr-paid-badge">✅ จ่ายแล้ว</span>':'')+'</div>'+
       '</div>'+
       '<div class="qr-img-wrap"><a href="'+qrUrl+'.png" target="_blank"><img src="'+qrUrl+'.png" alt="QR" style="width:180px;height:180px;"></a></div>'+
       '<div class="qr-items-list">'+itemRows+'</div>'+
@@ -987,17 +994,13 @@ function confirmAdminPrices() {
   document.getElementById('admin-qr-section').style.display='block';
   document.getElementById('admin-qr-section').scrollIntoView({behavior:'smooth'});
 
-  // Save notification per person
-  // ถ้ากรอบ UI เป็นสีเขียวอยู่แล้ว (paid) → ข้ามเลย ไม่ส่งซ้ำ
+  // Send notification only to unpaid persons (check localStorage not DOM)
   const ts = String(Date.now());
   const notifiedPersons = Object.keys(personData);
 
   Object.entries(personData).forEach(([person, data]) => {
-    const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
-    const card = document.querySelector('.qr-card[data-person="' + person + '"]');
-
-    // ถ้า card มี .paid อยู่แล้ว → ไม่ส่งแจ้งเตือนใหม่
-    if (card && card.classList.contains('paid')) return;
+    // ถ้ามีใน paidMap → จ่ายแล้ว ข้ามเลย
+    if (paidMap[person]) return;
 
     const qrUrl    = 'https://promptpay.io/' + phone + '/' + data.total + '.png';
     const notifKey = encodeURIComponent('qr_' + person);
@@ -1012,6 +1015,21 @@ function confirmAdminPrices() {
 }
 
 let _adminAckTimer = null;
+function markCardPaid(person) {
+  const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
+  const card = document.querySelector('.qr-card[data-person="' + person + '"]');
+  if (card && !card.classList.contains('paid')) {
+    card.classList.add('paid');
+    const badge = document.getElementById('paid-badge-' + personId);
+    if (badge) badge.innerHTML = '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>';
+  }
+  // Persist to localStorage
+  let paidMap = {};
+  try { paidMap = JSON.parse(localStorage.getItem('admin_paid') || '{}'); } catch(e) {}
+  paidMap[person] = String(Date.now());
+  localStorage.setItem('admin_paid', JSON.stringify(paidMap));
+}
+
 function startAdminAckPolling(persons, batchTs) {
   if (_adminAckTimer) clearInterval(_adminAckTimer);
   _adminAckTimer = setInterval(async () => {
@@ -1020,15 +1038,8 @@ function startAdminAckPolling(persons, batchTs) {
       const ackKey = encodeURIComponent('qr_ack_' + person);
       try {
         const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey);
-        const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
         if (res && res.value === 'paid' && res.ts >= batchTs) {
-          // Mark card green
-          const card = document.querySelector('.qr-card[data-person="' + person + '"]');
-          if (card && !card.classList.contains('paid')) {
-            card.classList.add('paid');
-            const badge = document.getElementById('paid-badge-' + personId);
-            if (badge) badge.innerHTML = '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>';
-          }
+          markCardPaid(person);
         } else {
           allPaid = false;
         }
