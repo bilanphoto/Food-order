@@ -416,6 +416,7 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="me-save-bar">
       <div class="me-save-info" id="me-save-info">แก้ไขเมนูแล้วกดบันทึก</div>
       <button class="me-save-btn" onclick="saveMenusToSheet()">💾 บันทึกเมนู</button>
+      <button class="me-save-btn" id="import-hm-btn" onclick="importHiaMoo()" style="background:linear-gradient(135deg,#e05c5c,#c0392b);margin-top:8px;">🐖 นำเข้าเมนูเฮียหมู</button>
     </div>
   </div>
 </div>
@@ -1377,6 +1378,53 @@ function pickEmoji(emoji) {
 // ════════════════════════════════
 //  SAVE MENUS — item-by-item JSONP GET (most reliable, no URL limit)
 // ════════════════════════════════
+async function importHiaMoo() {
+  const btn = document.getElementById('import-hm-btn');
+  btn.disabled = true; btn.textContent = '⏳ กำลังนำเข้า...';
+
+  const hiaMooItems = [
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าวมันไก่',id:'hm01',name:'ข้าวมันไก่ต้ม',desc:'',price:50,emoji:'🍗',tag:'rec',variants:[{label:'ธรรมดา',price:50},{label:'พิเศษ',price:60}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าวมันไก่',id:'hm02',name:'ข้าวมันไก่ทอด',desc:'',price:50,emoji:'🍗',tag:'',variants:[{label:'ธรรมดา',price:50},{label:'พิเศษ',price:60}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าวมันไก่',id:'hm03',name:'ข้าวมันไก่รวม',desc:'ต้ม+ทอด',price:60,emoji:'🍗',tag:'hot',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าว',id:'hm04',name:'ข้าวไก่ต้มน้ำปลา',desc:'',price:60,emoji:'🍚',tag:''},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าว',id:'hm05',name:'ข้าวหมูสามชั้นต้มน้ำปลา',desc:'',price:69,emoji:'🍖',tag:''},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'สุกี้',id:'hm06',name:'สุกี้หมู',desc:'น้ำ / แห้ง',price:60,emoji:'🍲',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'สุกี้',id:'hm07',name:'สุกี้ทะเล',desc:'น้ำ / แห้ง',price:70,emoji:'🦐',tag:'',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'สุกี้',id:'hm08',name:'สุกี้รวม',desc:'น้ำ / แห้ง',price:80,emoji:'🍲',tag:'hot',variants:[{label:'ธรรมดา',price:80},{label:'พิเศษ',price:90}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm09',name:'ก๋วยเตี๋ยวหมูน้ำใส',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:40,emoji:'🍜',tag:'rec',variants:[{label:'ธรรมดา',price:40},{label:'พิเศษ',price:50}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm10',name:'ก๋วยเตี๋ยวหมูต้มยำ',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:50,emoji:'🍜',tag:'',variants:[{label:'ธรรมดา',price:50},{label:'พิเศษ',price:60}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm11',name:'ก๋วยเตี๋ยวต้มยำรวม',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:60,emoji:'🍜',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm12',name:'ก๋วยเตี๋ยวต้มยำเกี้ยวส้วน',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:70,emoji:'🍜',tag:'hot',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm13',name:'เกาเหลาหมูน้ำใส',desc:'',price:60,emoji:'🥣',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm14',name:'เกาเหลาต้มยำรวม',desc:'',price:70,emoji:'🥣',tag:'hot',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm15',name:'เกาเหลาต้มยำหมู',desc:'',price:60,emoji:'🥣',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm16',name:'เกาเหลาเกี้ยวปลาล้วน',desc:'',price:70,emoji:'🥣',tag:'',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
+  ];
+
+  // Merge: keep existing non-เฮียหมู items + add new เฮียหมู
+  const existing = menuData.filter(i => i.restaurant !== 'เฮียหมู');
+  const merged = [...existing, ...hiaMooItems];
+
+  // Update local state
+  menuData = merged;
+  try { localStorage.setItem('menu_data_v2', JSON.stringify(merged)); } catch(x) {}
+  buildEditingMenus(merged);
+  renderAllGrids();
+
+  // Save to Sheets
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify({action:'saveMenus', rows: merged})
+    });
+    showToast('✅ นำเข้าเมนูเฮียหมู ' + hiaMooItems.length + ' รายการแล้ว!', 'success');
+  } catch(e) {
+    showToast('✅ นำเข้าแล้ว (local)', 'success');
+  }
+  btn.disabled = false; btn.textContent = '🐖 นำเข้าเมนูเฮียหมู';
+}
+
 async function saveMenusToSheet() {
   const btn  = document.querySelector('.me-save-btn');
   const info = document.getElementById('me-save-info');
