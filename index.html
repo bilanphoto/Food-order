@@ -417,6 +417,7 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="me-save-info" id="me-save-info">แก้ไขเมนูแล้วกดบันทึก</div>
       <button class="me-save-btn" onclick="saveMenusToSheet()">💾 บันทึกเมนู</button>
       <button class="me-save-btn" id="import-hm-btn" onclick="importHiaMoo()" style="background:linear-gradient(135deg,#e05c5c,#c0392b);margin-top:8px;">🐖 นำเข้าเมนูเฮียหมู</button>
+      <button class="me-save-btn" id="import-bo-btn" onclick="importBaanOng()" style="background:linear-gradient(135deg,#e07c3c,#b8520a);margin-top:8px;">🏠 นำเข้าเมนู อ.บ้านโอ่ง</button>
     </div>
   </div>
 </div>
@@ -1378,6 +1379,59 @@ function pickEmoji(emoji) {
 // ════════════════════════════════
 //  SAVE MENUS — item-by-item JSONP GET (most reliable, no URL limit)
 // ════════════════════════════════
+async function importBaanOng() {
+  const btn = document.getElementById('import-bo-btn');
+  btn.disabled = true; btn.textContent = '⏳ กำลังนำเข้า...';
+
+  const baanOngItems = [
+    // ราดข้าว
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo01',name:'ราดข้าวหมู',desc:'',price:50,emoji:'🍖',tag:'rec'},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo02',name:'ราดข้าวไก่',desc:'',price:50,emoji:'🍗',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo03',name:'ราดข้าวเครื่องใน',desc:'',price:50,emoji:'🍚',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo04',name:'ราดข้าวตับ',desc:'',price:50,emoji:'🍚',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo05',name:'ราดข้าวปลาดุกกรอบ',desc:'',price:60,emoji:'🐟',tag:'hot'},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo06',name:'ราดข้าวเนื้อ',desc:'',price:60,emoji:'🥩',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo07',name:'ราดข้าวเนื้อ+ปลาดุกกรอบ',desc:'',price:60,emoji:'🥩',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo08',name:'ราดข้าวเนื้อ+เครื่องใน',desc:'',price:60,emoji:'🥩',tag:''},
+    // ข้าวผัด
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo09',name:'ข้าวผัดหมู',desc:'',price:50,emoji:'🍳',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo10',name:'ข้าวผัดไก่',desc:'',price:50,emoji:'🍳',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo11',name:'ข้าวผัดแหนม',desc:'',price:50,emoji:'🍳',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo12',name:'ข้าวผัดกุนเชียง',desc:'',price:50,emoji:'🍳',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo13',name:'ข้าวผัดกุ้ง+หมูกรอบ',desc:'',price:80,emoji:'🍳',tag:'hot'},
+    // กับข้าว
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo14',name:'ต้มจืด หมู/ไก่',desc:'',price:50,emoji:'🥣',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo15',name:'กะเพรา หมู/ไก่',desc:'',price:50,emoji:'🌿',tag:'rec'},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo16',name:'พริกแกง หมู/ไก่',desc:'',price:50,emoji:'🌶️',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo17',name:'เครื่องใน/ตับ/เนื้อ/กุ้ง/หมูกรอบ',desc:'',price:60,emoji:'🍖',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo18',name:'ไข่เจียวหมูสับ',desc:'',price:50,emoji:'🥚',tag:''},
+    // เสริม
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'เสริม',id:'bo19',name:'ไข่คาว',desc:'',price:10,emoji:'🥚',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'เสริม',id:'bo20',name:'ไข่เจียว',desc:'',price:10,emoji:'🥚',tag:''},
+    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'เสริม',id:'bo21',name:'กุนเชียง',desc:'',price:20,emoji:'🌭',tag:''},
+  ];
+
+  const existing = menuData.filter(i => i.restaurant !== 'อ.บ้านโอ่ง');
+  const merged = [...existing, ...baanOngItems];
+
+  menuData = merged;
+  try { localStorage.setItem('menu_data_v2', JSON.stringify(merged)); } catch(x) {}
+  buildEditingMenus(merged);
+  renderAllGrids();
+
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify({action:'saveMenus', rows: merged})
+    });
+    showToast('✅ นำเข้าเมนู อ.บ้านโอ่ง ' + baanOngItems.length + ' รายการแล้ว!', 'success');
+  } catch(e) {
+    showToast('✅ นำเข้าแล้ว (local)', 'success');
+  }
+  btn.disabled = false; btn.textContent = '🏠 นำเข้าเมนู อ.บ้านโอ่ง';
+}
+
 async function importHiaMoo() {
   const btn = document.getElementById('import-hm-btn');
   btn.disabled = true; btn.textContent = '⏳ กำลังนำเข้า...';
