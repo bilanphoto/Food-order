@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🍱 สั่งอาหารกลุ่ม</title>
+<title>🍱 - กิน อะไร ดี -</title>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;สั่งอาหารกลุ่ม&quot;,&quot;short_name&quot;:&quot;🍱 อาหาร&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#1a1008&quot;,&quot;theme_color&quot;:&quot;#f5a623&quot;}">
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;- กิน อะไร ดี -&quot;,&quot;short_name&quot;:&quot;🍱 อาหาร&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#1a1008&quot;,&quot;theme_color&quot;:&quot;#f5a623&quot;}">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="🍱 อาหาร">
@@ -327,7 +327,7 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 <div id="page-register" class="page active">
   <div class="register-box">
     <span class="logo-icon">🍱</span>
-    <h1>สั่งอาหารกลุ่ม</h1>
+    <h1>- กิน อะไร ดี -</h1>
     <p>ใส่ชื่อของคุณเพื่อเริ่มสั่งอาหาร</p>
     <div class="input-group">
       <label>ชื่อของคุณ</label>
@@ -891,7 +891,7 @@ function renderAllOrdersTable(rows, container) {
 }
 async function clearAllSheetOrders() {
   if (!confirm('⚠️ ล้างรายการทั้งหมดใน Google Sheets ใช่ไหม?\n(ไม่สามารถกู้คืนได้)')) return;
-  try { await jsonpFetch(SCRIPT_URL+'?action=clear'); localStorage.removeItem('admin_paid'); showToast('🗑️ ล้างรายการแล้ว','success'); refreshAllOrders(); }
+  try { await jsonpFetch(SCRIPT_URL+'?action=clear'); localStorage.removeItem('admin_paid'); localStorage.removeItem('admin_qr_state'); showToast('🗑️ ล้างรายการแล้ว','success'); refreshAllOrders(); }
   catch(e) { showToast('❌ ล้างไม่สำเร็จ','error'); }
 }
 
@@ -910,7 +910,57 @@ async function loadAdminPriceTab() {
     const json=await jsonpFetch(SCRIPT_URL+'?action=get');
     adminRows=json.rows||[];
     renderAdminTable(adminRows,el);
+    restoreQrSection();
   } catch(e) { el.innerHTML='<div class="empty-state"><div class="empty-icon">❌</div><p>โหลดไม่สำเร็จ</p></div>'; }
+}
+
+function restoreQrSection() {
+  let qrState = {};
+  try { qrState = JSON.parse(localStorage.getItem('admin_qr_state') || '{}'); } catch(e) {}
+  if (!Object.keys(qrState).length) return;
+
+  let paidMap = {};
+  try { paidMap = JSON.parse(localStorage.getItem('admin_paid') || '{}'); } catch(e) {}
+
+  const wrap = document.getElementById('qr-cards-wrap');
+  wrap.innerHTML = '';
+
+  Object.entries(qrState).forEach(([person, data]) => {
+    const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
+    const isPaid = !!paidMap[person];
+    const itemRows = (data.items||[]).map(it =>
+      '<div class="qr-item-row">'+
+        '<span class="qr-item-name">'+it.emoji+' '+it.name+' ×'+it.qty+'</span>'+
+        '<span>฿'+it.actual+'</span>'+
+      '</div>'
+    ).join('');
+    const card = document.createElement('div');
+    card.className = 'qr-card' + (isPaid ? ' paid' : '');
+    card.setAttribute('data-person', person);
+    card.innerHTML =
+      '<div class="qr-card-header">'+
+        '<div class="qr-card-name">👤 '+person+'</div>'+
+        '<div class="qr-card-amount">฿'+data.amount+'</div>'+
+        '<div id="paid-badge-'+personId+'">'+(isPaid ? '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>' : '')+'</div>'+
+      '</div>'+
+      '<div class="qr-img-wrap">'+
+        '<a href="'+data.qrUrl+'" target="_blank">'+
+          '<img src="'+data.qrUrl+'" alt="QR" style="width:180px;height:180px;">'+
+        '</a>'+
+      '</div>'+
+      '<div class="qr-items-list">'+itemRows+'</div>'+
+      '<div style="display:flex;gap:8px;margin:0 14px 14px;">'+
+        '<button class="qr-save-btn" style="flex:1" onclick="downloadQR(this.dataset.url,this.dataset.fn)" data-url="'+data.qrUrl+'" data-fn="QR_'+person+'_'+data.amount+'THB.png">💾 บันทึก QR</button>'+
+        '<button class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(this.dataset.url)" data-url="'+data.qrUrl.replace('.png','')+'">🔗 เปิด QR</button>'+
+      '</div>';
+    wrap.appendChild(card);
+  });
+
+  document.getElementById('admin-qr-section').style.display = 'block';
+
+  // Resume polling for unpaid
+  const unpaid = Object.keys(qrState).filter(p => !paidMap[p]);
+  if (unpaid.length) startAdminAckPolling(unpaid, '0');
 }
 function renderAdminTable(rows,container) {
   if (!rows.length) { container.innerHTML='<div class="empty-state"><div class="empty-icon">🍽️</div><p>ยังไม่มีการสั่งอาหาร</p></div>'; document.getElementById('admin-confirm-bar').style.display='none'; return; }
@@ -994,14 +1044,22 @@ function confirmAdminPrices() {
   document.getElementById('admin-qr-section').style.display='block';
   document.getElementById('admin-qr-section').scrollIntoView({behavior:'smooth'});
 
-  // Send notification only to unpaid persons (check localStorage not DOM)
+  // บันทึก QR state ลง localStorage ไว้ restore หลัง refresh
+  const qrState = {};
+  Object.entries(personData).forEach(([person, data]) => {
+    qrState[person] = {
+      amount: data.total,
+      qrUrl: 'https://promptpay.io/' + phone + '/' + data.total + '.png',
+      items: data.items
+    };
+  });
+  localStorage.setItem('admin_qr_state', JSON.stringify(qrState));
+
+  // ส่ง notification เฉพาะคนที่ยังไม่จ่าย
   const ts = String(Date.now());
   const notifiedPersons = Object.keys(personData);
-
   Object.entries(personData).forEach(([person, data]) => {
-    // ถ้ามีใน paidMap → จ่ายแล้ว ข้ามเลย
-    if (paidMap[person]) return;
-
+    if (paidMap[person]) return;  // จ่ายแล้ว → ข้าม
     const qrUrl    = 'https://promptpay.io/' + phone + '/' + data.total + '.png';
     const notifKey = encodeURIComponent('qr_' + person);
     const ackKey   = encodeURIComponent('qr_ack_' + person);
