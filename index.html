@@ -2057,23 +2057,8 @@ async function sendBroadcast() {
   if (!msg) { showToast('⚠️ กรุณาเลือกหรือพิมพ์ข้อความ','error'); return; }
   const ts = String(Date.now());
 
-  // บันทึกลง GAS แบบ await + verify เหมือน QR
-  try {
-    const saveResult = await jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=broadcast&value=' + encodeURIComponent(msg) + '&ts=' + ts);
-    console.log('broadcast save result:', saveResult);
-
-    // verify กลับ ว่าบันทึกจริงๆ
-    const verify = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=broadcast');
-    console.log('broadcast verify:', verify);
-
-    if (!verify || verify.ts !== ts) {
-      showToast('❌ บันทึกไม่สำเร็จ ลองใหม่', 'error');
-      return;
-    }
-  } catch(e) {
-    showToast('❌ GAS error: ' + e.message, 'error');
-    return;
-  }
+  // บันทึกลง GAS (fire & forget — ไม่รอ verify)
+  jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=broadcast&value=' + encodeURIComponent(msg) + '&ts=' + ts).catch(()=>{});
 
   // mark seen เฉพาะ user แอดมินคนนี้
   localStorage.setItem('bcast_seen_ts_' + currentUser, ts);
@@ -2102,12 +2087,16 @@ async function checkBroadcast() {
   } catch(e) { console.log('[bcast] error:', e); }
 }
 function showBcastNotif(msg) {
-  document.getElementById('bcast-notif-text').textContent = msg;
-  const bar = document.getElementById('bcast-notif-bar');
-  bar.style.display = 'flex';
-  setTimeout(()=>{ if(bar.style.display!='none') closeBcastNotif(); }, 8000);
-  // Native OS notification
+  // Native notification ก่อนเสมอ (ทำงานแม้อยู่หน้าไหนก็ได้)
   sendNativeNotif('🍱 - กิน อะไร ดี -', msg, 'broadcast');
+  // In-app bar (optional)
+  const bar = document.getElementById('bcast-notif-bar');
+  const txt = document.getElementById('bcast-notif-text');
+  if (bar && txt) {
+    txt.textContent = msg;
+    bar.style.display = 'flex';
+    setTimeout(()=>{ if(bar && bar.style.display!='none') closeBcastNotif(); }, 8000);
+  }
 }
 function closeBcastNotif() {
   document.getElementById('bcast-notif-bar').style.display = 'none';
