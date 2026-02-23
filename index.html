@@ -88,7 +88,7 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .empty-menu-hint{text-align:center;padding:30px;color:var(--text3);font-size:13px;}
 
 /* BOTTOM BAR */
-.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);padding:11px 14px;display:flex;align-items:center;justify-content:space-between;z-index:100;backdrop-filter:blur(10px);gap:10px;}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);padding:11px 14px;display:flex;align-items:center;justify-content:space-between;z-index:50;backdrop-filter:blur(10px);gap:10px;}
 .bottom-bar-info{font-size:12px;color:var(--text2);}
 .bottom-bar-info span{color:var(--text);font-weight:600;font-size:14px;}
 .confirm-btn{background:linear-gradient(135deg,var(--green),#38a169);border:none;border-radius:11px;padding:10px 18px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0;box-shadow:0 4px 16px rgba(76,175,125,0.35);transition:transform .15s;}
@@ -123,17 +123,18 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .modal-submit:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
 
 /* QR NOTIFICATION POPUP */
-.qr-notif-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .3s ease;}
-.qr-notif-box{background:var(--card);border:2px solid var(--accent);border-radius:24px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:popUp .35s cubic-bezier(.34,1.56,.64,1);}
+.qr-notif-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:16px 16px 100px;overflow-y:auto;animation:fadeIn .3s ease;}
+.qr-notif-box{background:var(--card);border:2px solid var(--accent);border-radius:24px;padding:20px 18px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:popUp .35s cubic-bezier(.34,1.56,.64,1);margin-top:auto;margin-bottom:auto;}
 @keyframes popUp{from{transform:scale(0.7);opacity:0}to{transform:scale(1);opacity:1}}
 .qr-notif-title{font-family:'Mitr',sans-serif;font-size:13px;color:var(--text2);margin-bottom:4px;}
 .qr-notif-name{font-family:'Mitr',sans-serif;font-size:20px;font-weight:700;color:var(--accent);margin-bottom:2px;}
-.qr-notif-amount{font-family:'Mitr',sans-serif;font-size:42px;font-weight:700;color:var(--text);margin:8px 0;}
-.qr-notif-img{width:200px;height:200px;border-radius:12px;margin:8px auto;display:block;background:#fff;padding:4px;}
-.qr-notif-items{background:var(--bg2);border-radius:10px;padding:10px 12px;margin:10px 0;text-align:left;font-size:12px;color:var(--text2);max-height:120px;overflow-y:auto;}
+.qr-notif-amount{font-family:'Mitr',sans-serif;font-size:36px;font-weight:700;color:var(--text);margin:4px 0;}
+.qr-notif-img{width:170px;height:170px;border-radius:12px;margin:6px auto;display:block;background:#fff;padding:4px;}
+.qr-notif-items{background:var(--bg2);border-radius:10px;padding:8px 12px;margin:8px 0;text-align:left;font-size:12px;color:var(--text2);max-height:80px;overflow-y:auto;}
 .qr-notif-items div{padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);}
 .qr-notif-items div:last-child{border:none;}
 .qr-notif-close{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;padding:13px;font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:var(--bg);cursor:pointer;margin-top:6px;}
+.qr-notif-bank{width:100%;background:linear-gradient(135deg,#1a6bb5,#0d4f8a);border:none;border-radius:12px;padding:13px;font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:white;cursor:pointer;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;}
 
 /* PAGE HEADER */
 .page-header{background:var(--card);border-bottom:1px solid var(--border);padding:14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:50;}
@@ -453,7 +454,8 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="qr-notif-amount" id="qrn-amount"></div>
     <img class="qr-notif-img" id="qrn-img" src="" alt="QR">
     <div class="qr-notif-items" id="qrn-items"></div>
-    <button class="qr-notif-close" onclick="dismissQrNotif()">✅ รับทราบแล้ว</button>
+    <button class="qr-notif-bank" id="qrn-bank-btn" onclick="openBankingApp()">🏦 เปิดแอพธนาคาร</button>
+    <button class="qr-notif-close" onclick="dismissQrNotif()">✅ จ่ายแล้ว รับทราบ</button>
   </div>
 </div>
 
@@ -574,9 +576,27 @@ function refreshAdminTab() {
 //  BUILD MENU TABS FROM DATA
 // ════════════════════════════════
 function buildMenuFromData(data) {
-  menuData = data;
+  // เพิ่ม "รายการพิเศษ" ให้ทุกร้านโดยอัตโนมัติ (ไม่บันทึกลง Sheets)
+  const restaurants = [...new Set(data.map(i=>i.restaurant))];
+  const customs = restaurants.map(rest => {
+    const sample = data.find(i=>i.restaurant===rest)||{};
+    return {
+      id: 'custom_'+rest.replace(/[^a-zA-Z0-9]/g,''),
+      restaurant: rest,
+      restaurantEmoji: sample.restaurantEmoji||'🍽️',
+      category: '✏️ รายการพิเศษ',
+      name: '',           // blank — user types it
+      desc: 'พิมพ์ชื่อและราคาเอง',
+      price: 0,
+      emoji: '✏️',
+      tag: '',
+      isCustom: true
+    };
+  });
+  const allData = [...data, ...customs];
+  menuData = allData;
   menuMap = {};
-  data.forEach(function(i){ menuMap[i.id] = i; });
+  allData.forEach(function(i){ menuMap[i.id] = i; });
   const tabsEl    = document.getElementById('menu-tabs');
   const contentsEl = document.getElementById('menu-tab-contents');
   tabsEl.innerHTML = '';
@@ -654,6 +674,23 @@ function variantBtnHTML(itemId, vi, label, price, qty) {
 }
 
 function cardHTML(item) {
+  // Custom blank item — render input fields
+  if (item.isCustom) {
+    const cid = item.id;
+    return '<div class="food-card" id="card-'+cid+'" style="border:1.5px dashed rgba(245,166,35,0.3);">'+
+      '<div style="padding:12px 14px;">'+
+        '<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;">✏️ รายการพิเศษ / กรอกเอง</div>'+
+        '<input id="cname-'+cid+'" type="text" placeholder="ชื่อรายการ..." '+
+          'style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-family:Kanit,sans-serif;font-size:13px;color:var(--text);margin-bottom:6px;box-sizing:border-box;">'+
+        '<div style="display:flex;gap:8px;align-items:center;">'+
+          '<input id="cprice-'+cid+'" type="number" placeholder="ราคา ฿" min="0" '+
+            'style="width:90px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-family:Kanit,sans-serif;font-size:13px;color:var(--text);">'+
+          '<button onclick="addCustomItem(this)" data-cid="'+cid+'" '+
+            'style="flex:1;background:var(--green);border:none;border-radius:8px;padding:8px;font-family:Kanit,sans-serif;font-size:13px;font-weight:600;color:white;cursor:pointer;">+ เพิ่ม</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
   const hasVariants = item.variants && item.variants.length > 0;
   const tag = item.tag ? '<span class="tag tag-'+item.tag+'">'+(TAG_LABEL[item.tag]||'')+'</span>' : '';
 
@@ -753,6 +790,34 @@ function refreshCard(itemId) {
 // ════════════════════════════════
 //  CART
 // ════════════════════════════════
+function addCustomItem(btn) {
+  const cid = btn.dataset ? btn.dataset.cid : btn;
+  const nameEl  = document.getElementById('cname-'+cid);
+  const priceEl = document.getElementById('cprice-'+cid);
+  if (!nameEl || !priceEl) return;
+  const name  = nameEl.value.trim();
+  const price = Number(priceEl.value)||0;
+  if (!name) { nameEl.focus(); showToast('⚠️ กรุณากรอกชื่อรายการ','error'); return; }
+  if (!price) { priceEl.focus(); showToast('⚠️ กรุณากรอกราคา','error'); return; }
+
+  // Get restaurant from custom item
+  const meta = menuMap[cid];
+  if (!meta) return;
+
+  // Create unique id for this custom entry
+  const uid = 'cx_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+  localCart[uid] = {
+    qty: 1, price, name,
+    emoji: '✏️',
+    restaurant: meta.restaurant,
+    note: ''
+  };
+  // Clear inputs
+  nameEl.value = ''; priceEl.value = '';
+  updateMyStats(); updateBadge();
+  showToast('✅ เพิ่ม '+name+' ฿'+price+' แล้ว','success');
+}
+
 function chg(itemId, delta) {
   const meta = menuMap[itemId];
   if (!meta) return;
@@ -797,6 +862,12 @@ function updateMyStats() {
 function updateBadge() {
   let t=0; for (const it of Object.values(localCart)) t+=it.qty;
   document.getElementById('cart-badge').textContent = t;
+}
+function updateOrdersBadge(rows) {
+  // แสดงจำนวน rows ทั้งหมดใน Sheets บน badge ปุ่มรายการทั้งหมด
+  const total = (rows||[]).reduce((s,r)=>s+(Number(r.qty)||0), 0);
+  const el = document.getElementById('cart-badge');
+  if (el) el.textContent = total;
 }
 
 // ════════════════════════════════
@@ -880,6 +951,7 @@ function renderAllOrdersTable(rows, container) {
     const sub=items.reduce((s,r)=>s+(Number(r.total)||(Number(r.qty)*Number(r.price))),0);
     return '<div class="person-sum-pill"><span class="td-person">👤 '+person+'</span><span class="person-sum-price">฿'+sub+'</span></div>';
   }).join('');
+  updateOrdersBadge(rows);
   container.innerHTML =
     '<div class="order-table-wrap"><table class="order-table"><thead><tr>'+
     '<th>รายการอาหาร</th><th class="center">จำนวน</th><th class="center">ราคา</th><th class="center">ผู้สั่ง</th><th class="center">ร้าน</th><th class="center">เวลา</th>'+
@@ -1640,6 +1712,9 @@ function showQrNotif(data) {
   document.getElementById('qrn-name').textContent = '👤 ' + (data.person||'');
   document.getElementById('qrn-amount').textContent = '฿' + (data.amount||0);
   document.getElementById('qrn-img').src = data.qrUrl || '';
+  // Store for openBankingApp
+  const btn = document.getElementById('qrn-bank-btn');
+  if (btn) { btn.dataset.url = data.qrUrl||''; btn.dataset.amount = data.amount||0; }
   const itemsEl = document.getElementById('qrn-items');
   itemsEl.innerHTML = (data.items||[]).map(it =>
     '<div>' + it.emoji + ' ' + it.name + ' ×' + it.qty + ' — ฿' + it.actual + '</div>'
@@ -1682,6 +1757,35 @@ function updateAppBadge(count) {
       count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge();
     }
   } catch(e) {}
+}
+
+function openBankingApp() {
+  const btn = document.getElementById('qrn-bank-btn');
+  const amount = btn ? btn.dataset.amount : '0';
+
+  // ดึง phone จาก localStorage (บันทึกตอน Admin ตั้งค่า)
+  const phone = localStorage.getItem('food_order_phone') || '';
+
+  // promptpay:// URI — เปิดแอพธนาคารโดยตรง
+  // format: promptpay://payment?mobile=<phone>&amount=<amount>
+  const uri = 'promptpay://payment?mobile=' + encodeURIComponent(phone) + '&amount=' + amount;
+
+  // ลองเปิด promptpay:// ก่อน — ถ้าไม่มีแอพ fallback เปิด QR image ใน browser
+  const fallbackUrl = btn ? btn.dataset.url : '';
+  
+  // สร้าง hidden link แล้วคลิก
+  const a = document.createElement('a');
+  a.href = uri;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  // Fallback หลัง 1.5 วิ ถ้าแอพไม่เปิด → เปิด QR ใน browser แทน
+  setTimeout(() => {
+    if (document.visibilityState !== 'hidden' && fallbackUrl) {
+      window.open(fallbackUrl, '_blank');
+    }
+  }, 1500);
 }
 
 function dismissQrNotif() {
@@ -1738,6 +1842,8 @@ function dismissQrNotif() {
     startQrPolling();
   }
   renderAllGrids();
+  // Load orders badge on startup
+  jsonpFetch(SCRIPT_URL+'?action=get').then(j=>updateOrdersBadge(j.rows||[])).catch(()=>{});
 })();
 
 function loadDefaultMenus() {
