@@ -482,19 +482,6 @@ canvas#spin-canvas{border-radius:50%;display:block;}
 </div>
 
 <!-- CONFIRM ORDER MODAL -->
-<!-- SPIN WHEEL MODAL -->
-<div id="spin-modal-overlay" class="spin-modal-overlay" style="display:none;" onclick="if(event.target.id==='spin-modal-overlay')closeSpinModal()">
-  <div class="spin-modal-box">
-    <button class="spin-modal-close" onclick="closeSpinModal()">✕</button>
-    <div class="spin-title">🎰 กิน อะไร ดี?</div>
-    <div class="wheel-outer" style="margin:0 auto 4px;">
-      <div class="wheel-pointer">▼</div>
-      <canvas id="spin-canvas" width="280" height="280"></canvas>
-    </div>
-    <button class="spin-btn" id="spin-btn" onclick="spinWheel()">🎲 หมุน!</button>
-    <div id="spin-result" style="display:none;margin-top:12px;"></div>
-  </div>
-</div>
 <div id="qr-notif-overlay" style="display:none;">
   <div class="qr-notif-box">
     <div class="qr-notif-title">💳 กรุณาชำระเงิน</div>
@@ -2058,7 +2045,7 @@ function dismissQrNotif() {
   try {
     const json = await jsonpFetch(SCRIPT_URL + '?action=getMenus');
     if (json.rows && json.rows.length && isMenuRow(json.rows[0])) {
-      menuData = json.rows; buildEditingMenus(json.rows); loaded = true;
+      menuData = json.rows; buildEditingMenus(json.rows); renderAllGrids(); loaded = true;
     }
   } catch(e) {}
 
@@ -2069,7 +2056,7 @@ function dismissQrNotif() {
       if (ls) {
         const rows = JSON.parse(ls);
         if (rows.length && isMenuRow(rows[0])) {
-          menuData = rows; buildEditingMenus(rows); loaded = true;
+          menuData = rows; buildEditingMenus(rows); renderAllGrids(); loaded = true;
         }
       }
     } catch(e) {}
