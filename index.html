@@ -1942,27 +1942,22 @@ async function checkQrNotification() {
     const notifKey = encodeURIComponent('qr_' + currentUser);
     const ackKey   = encodeURIComponent('qr_ack_' + currentUser);
 
-    // Fetch both notif and ack in parallel
-    const [notif, ack] = await Promise.all([
-      jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + notifKey),
-      jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey)
-    ]);
-
+    // ส่งทีละ request แทน Promise.all — ลด concurrent JSONP ที่อาจ block กัน
+    const notif = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + notifKey);
     if (!notif || !notif.value || !notif.ts) return;
 
-    // Skip if user already acknowledged THIS batch (ack.ts >= notif.ts)
+    const ack = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey);
+
     const alreadyPaid = ack && ack.value === 'paid' && ack.ts >= notif.ts;
     if (alreadyPaid) return;
 
-    // Skip if already shown this ts (persisted across app restarts)
     const seenTs = localStorage.getItem('qr_seen_ts_' + currentUser) || '';
     if (notif.ts === seenTs) return;
 
-    // New notification — show it
     localStorage.setItem('qr_seen_ts_' + currentUser, notif.ts);
     const data = JSON.parse(notif.value);
     showQrNotif(data);
-  } catch(e) {}
+  } catch(e) { console.log('[qr] error:', e); }
 }
 
 function showQrNotif(data) {
