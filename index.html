@@ -2025,15 +2025,30 @@ async function sendBroadcast() {
   const msg = selected ? selected.textContent.trim() : custom;
   if (!msg) { showToast('⚠️ กรุณาเลือกหรือพิมพ์ข้อความ','error'); return; }
   const ts = String(Date.now());
-  // บันทึก broadcast ลง GAS
-  jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=broadcast&value=' + encodeURIComponent(msg) + '&ts=' + ts)
-    .catch(()=>{});
-  // mark as seen ไม่ให้ poll แสดงซ้ำหลัง send
+
+  // บันทึกลง GAS แบบ await + verify เหมือน QR
+  try {
+    const saveResult = await jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=broadcast&value=' + encodeURIComponent(msg) + '&ts=' + ts);
+    console.log('broadcast save result:', saveResult);
+
+    // verify กลับ ว่าบันทึกจริงๆ
+    const verify = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=broadcast');
+    console.log('broadcast verify:', verify);
+
+    if (!verify || verify.ts !== ts) {
+      showToast('❌ บันทึกไม่สำเร็จ ลองใหม่', 'error');
+      return;
+    }
+  } catch(e) {
+    showToast('❌ GAS error: ' + e.message, 'error');
+    return;
+  }
+
+  // mark seen บน device แอดมิน
   localStorage.setItem('bcast_seen_ts', ts);
   closeBcastModal();
-  // ส่ง native notification ทันทีไม่รอ poll
   sendNativeNotif('🍱 - กิน อะไร ดี -', msg, 'broadcast');
-  showToast('✅ ส่งแจ้งเตือนแล้ว!','success');
+  showToast('✅ ส่งแจ้งเตือนแล้ว! รอ device อื่น ~5 วิ', 'success');
 }
 
 // Polling broadcast — ใช้ pattern เดียวกับ QR notification
