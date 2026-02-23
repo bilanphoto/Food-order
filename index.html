@@ -1959,62 +1959,28 @@ function showQrNotif(data) {
 }
 
 // ── Native Notification System ─────────────────────────
-let _swReg = null;
-
 async function initNotifications() {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'default') {
     await Notification.requestPermission();
   }
-  // Register Service Worker สำหรับ background notification
-  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-    try {
-      const swCode = `
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  e.waitUntil(clients.matchAll({type:'window'}).then(list => {
-    if (list.length) return list[0].focus();
-    return clients.openWindow('/');
-  }));
-});`;
-      const blob = new Blob([swCode], {type:'application/javascript'});
-      const swUrl = URL.createObjectURL(blob);
-      _swReg = await navigator.serviceWorker.register(swUrl);
-    } catch(e) { _swReg = null; }
-  }
 }
 
-async function sendNativeNotif(title, body, tag) {
+function sendNativeNotif(title, body, tag) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const opts = {
-    body,
-    icon: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
-    badge: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
-    tag: tag || 'ginawidee',
-    requireInteraction: true,
-    vibrate: [200, 100, 200]
-  };
   try {
-    // ใช้ SW showNotification (ทำงาน background) ถ้ามี
-    if (_swReg) {
-      await _swReg.showNotification(title, opts);
-    } else {
-      const n = new Notification(title, opts);
-      n.onclick = () => { window.focus(); n.close(); };
-    }
-  } catch(e) {
-    try { new Notification(title, opts); } catch(e2) {}
-  }
+    const n = new Notification(title, {
+      body,
+      icon: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
+      badge: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
+      tag: tag || 'ginawidee',
+      requireInteraction: true,
+      silent: false
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch(e) { console.warn('Notification error:', e); }
 }
 
-
-function updateAppBadge(count) {
-  try {
-    if (navigator.setAppBadge) {
-      count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge();
-    }
-  } catch(e) {}
-}
 
 // ════════════════════════════════
 //  BROADCAST NOTIFICATION
