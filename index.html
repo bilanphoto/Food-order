@@ -2084,20 +2084,21 @@ async function sendBroadcast() {
 
 // Polling broadcast — ใช้ pattern เดียวกับ QR notification
 async function checkBroadcast() {
-  if (!currentUser) return;
+  if (!currentUser) { console.log('[bcast] skip: no user'); return; }
   try {
     const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=broadcast');
+    console.log('[bcast] poll result:', res);
     if (!res || !res.value || !res.ts) return;
 
-    // ใช้ localStorage per-key เหมือน QR
     const seenKey = 'bcast_seen_ts';
     const seenTs  = localStorage.getItem(seenKey) || '';
+    console.log('[bcast] res.ts:', res.ts, 'seenTs:', seenTs);
 
-    if (res.ts === seenTs) return;  // เคยเห็น ts นี้แล้ว
+    if (res.ts === seenTs) { console.log('[bcast] already seen, skip'); return; }
 
     localStorage.setItem(seenKey, res.ts);
     showBcastNotif(res.value);
-  } catch(e) {}
+  } catch(e) { console.log('[bcast] error:', e); }
 }
 function showBcastNotif(msg) {
   document.getElementById('bcast-notif-text').textContent = msg;
