@@ -2025,10 +2025,15 @@ async function sendBroadcast() {
   const msg = selected ? selected.textContent.trim() : custom;
   if (!msg) { showToast('⚠️ กรุณาเลือกหรือพิมพ์ข้อความ','error'); return; }
   const ts = String(Date.now());
-  // บันทึก broadcast ลง GAS Settings sheet
+  // บันทึก broadcast ลง GAS
   jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=broadcast&value=' + encodeURIComponent(msg) + '&ts=' + ts)
     .catch(()=>{});
+  // อัป _lastBcastTs ไม่ให้ poll แสดงซ้ำ
+  _lastBcastTs = ts;
+  localStorage.setItem('last_bcast_ts', ts);
   closeBcastModal();
+  // ส่ง native notification ทันทีไม่รอ poll
+  sendNativeNotif('🍱 - กิน อะไร ดี -', msg, 'broadcast');
   showToast('✅ ส่งแจ้งเตือนแล้ว!','success');
 }
 
