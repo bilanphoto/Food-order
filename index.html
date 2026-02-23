@@ -1898,6 +1898,7 @@ let _qrPollTimer = null;
 
 function startQrPolling() {
   if (_qrPollTimer) return;
+  initNotifications(); // ขอ permission + register SW
   _qrPollTimer = setInterval(()=>{ checkQrNotification(); checkBroadcast(); }, 5000);
   checkQrNotification();
   checkBroadcast();
@@ -1953,34 +1954,59 @@ function showQrNotif(data) {
   // Badge API (PWA icon badge)
   updateAppBadge(1);
 
-  // Web Notification (native system notification)
-  if ('Notification' in window) {
-    if (Notification.permission === 'granted') {
-      fireWebNotif(data);
-    } else if (Notification.permission !== 'denied') {
-      Notification.requestPermission().then(p => { if (p === 'granted') fireWebNotif(data); });
-    }
+  // Web Notification
+  sendNativeNotif('💳 กรุณาชำระเงิน', '👤 ' + data.person + '  ฿' + data.amount, 'qr-payment');
+}
+
+// ── Native Notification System ─────────────────────────
+let _swReg = null;
+
+async function initNotifications() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+  // Register Service Worker สำหรับ background notification
+  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+    try {
+      const swCode = `
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({type:'window'}).then(list => {
+    if (list.length) return list[0].focus();
+    return clients.openWindow('/');
+  }));
+});`;
+      const blob = new Blob([swCode], {type:'application/javascript'});
+      const swUrl = URL.createObjectURL(blob);
+      _swReg = await navigator.serviceWorker.register(swUrl);
+    } catch(e) { _swReg = null; }
   }
 }
 
-function fireWebNotif(data) {
+async function sendNativeNotif(title, body, tag) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const opts = {
+    body,
+    icon: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
+    badge: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
+    tag: tag || 'ginawidee',
+    requireInteraction: true,
+    vibrate: [200, 100, 200]
+  };
   try {
-    const n = new Notification('💳 กรุณาชำระเงิน', {
-      body: '👤 ' + data.person + '  ฿' + data.amount,
-      icon: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
-      badge: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
-      tag: 'qr-payment',
-      requireInteraction: true
-    });
-    n.onclick = () => {
-      window.focus();
-      document.getElementById('qr-notif-overlay').style.display = 'flex';
-  // ซ่อน bottom-bar และ topbar ไม่ให้ทับ popup
-  document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='none');
-      n.close();
-    };
-  } catch(e) {}
+    // ใช้ SW showNotification (ทำงาน background) ถ้ามี
+    if (_swReg) {
+      await _swReg.showNotification(title, opts);
+    } else {
+      const n = new Notification(title, opts);
+      n.onclick = () => { window.focus(); n.close(); };
+    }
+  } catch(e) {
+    try { new Notification(title, opts); } catch(e2) {}
+  }
 }
+
 
 function updateAppBadge(count) {
   try {
@@ -2037,15 +2063,11 @@ async function checkBroadcast() {
 }
 function showBcastNotif(msg) {
   document.getElementById('bcast-notif-text').textContent = msg;
-  const overlay = document.getElementById('bcast-notif-overlay');
-  overlay.style.display = 'flex';
-  // ซ่อน topbar + bottom-bar เหมือน QR popup
-  document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='none');
-  Object.assign(overlay.style, {
-    position:'fixed', inset:'0', background:'rgba(0,0,0,0.92)',
-    zIndex:'10000', display:'flex', alignItems:'center',
-    justifyContent:'center', padding:'16px'
-  });
+  const bar = document.getElementById('bcast-notif-bar');
+  bar.style.display = 'flex';
+  setTimeout(()=>{ if(bar.style.display!='none') closeBcastNotif(); }, 8000);
+  // Native OS notification
+  sendNativeNotif('🍱 - กิน อะไร ดี -', msg, 'broadcast');
 }
 function closeBcastNotif() {
   document.getElementById('bcast-notif-overlay').style.display = 'none';
