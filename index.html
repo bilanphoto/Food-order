@@ -618,7 +618,7 @@ function buildMenuFromData(data) {
 
   // Group: restaurant -> category -> items
   const restMap = {};
-  for (const item of data) {
+  for (const item of allData) {
     if (!restMap[item.restaurant]) restMap[item.restaurant] = { emoji: item.restaurantEmoji||'🍽️', cats: {} };
     if (!restMap[item.restaurant].cats[item.category]) restMap[item.restaurant].cats[item.category] = [];
     restMap[item.restaurant].cats[item.category].push(item);
