@@ -451,8 +451,16 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="qr-notif-title">💳 กรุณาชำระเงิน</div>
     <div class="qr-notif-name" id="qrn-name"></div>
     <div class="qr-notif-amount" id="qrn-amount"></div>
-    <img class="qr-notif-img" id="qrn-img" src="" alt="QR">
+    <img class="qr-notif-img" id="qrn-img" src="" alt="QR" style="pointer-events:none;">
     <div class="qr-notif-items" id="qrn-items"></div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <button id="qrn-save-btn" onclick="saveQrImage()" style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:11px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;">
+        💾 บันทึก QR
+      </button>
+      <button id="qrn-copy-btn" onclick="copyPromptPay()" style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:11px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;">
+        📋 คัดลอกเลข
+      </button>
+    </div>
     <button class="qr-notif-close" onclick="dismissQrNotif()">✅ จ่ายแล้ว รับทราบ</button>
   </div>
 </div>
@@ -1713,9 +1721,12 @@ function showQrNotif(data) {
   document.getElementById('qrn-name').textContent = '👤 ' + (data.person||'');
   document.getElementById('qrn-amount').textContent = '฿' + (data.amount||0);
   document.getElementById('qrn-img').src = data.qrUrl || '';
-  // Store for openBankingApp
-  const btn = document.getElementById('qrn-bank-btn');
-  if (btn) { btn.dataset.url = data.qrUrl||''; btn.dataset.amount = data.amount||0; }
+  // Store phone+amount for copy button
+  const copyBtn = document.getElementById('qrn-copy-btn');
+  if (copyBtn) { copyBtn.dataset.phone = localStorage.getItem('food_order_phone')||''; copyBtn.dataset.amount = data.amount||0; }
+  // Store qrUrl for save button
+  const saveBtn = document.getElementById('qrn-save-btn');
+  if (saveBtn) saveBtn.dataset.url = data.qrUrl||'';
   const itemsEl = document.getElementById('qrn-items');
   itemsEl.innerHTML = (data.items||[]).map(it =>
     '<div>' + it.emoji + ' ' + it.name + ' ×' + it.qty + ' — ฿' + it.actual + '</div>'
@@ -1791,6 +1802,41 @@ function openBankingApp() {
       window.open(fallbackUrl, '_blank');
     }
   }, 1500);
+}
+
+function saveQrImage() {
+  const btn = document.getElementById('qrn-save-btn');
+  const url = btn ? btn.dataset.url : '';
+  if (!url) return;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'PromptPay_QR.png';
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  btn.textContent = '✅ บันทึกแล้ว!';
+  setTimeout(() => { btn.textContent = '💾 บันทึก QR'; }, 2000);
+}
+
+function copyPromptPay() {
+  const btn = document.getElementById('qrn-copy-btn');
+  const phone  = btn ? btn.dataset.phone  : '';
+  const amount = btn ? btn.dataset.amount : '';
+  // คัดลอกเลขพร้อมเพย์ + ยอดเงิน ให้วางใน chat แอพธนาคารได้เลย
+  const text = phone + (amount ? ' ยอด ฿' + amount : '');
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✅ คัดลอกแล้ว!';
+    setTimeout(() => { btn.innerHTML = '📋 คัดลอกเลขพร้อมเพย์'; }, 2000);
+  }).catch(() => {
+    // fallback สำหรับเบราว์เซอร์เก่า
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✅ คัดลอกแล้ว!';
+    setTimeout(() => { btn.innerHTML = '📋 คัดลอกเลขพร้อมเพย์'; }, 2000);
+  });
 }
 
 function dismissQrNotif() {
