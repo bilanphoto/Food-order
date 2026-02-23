@@ -2075,8 +2075,8 @@ async function sendBroadcast() {
     return;
   }
 
-  // mark seen บน device แอดมิน
-  localStorage.setItem('bcast_seen_ts', ts);
+  // mark seen เฉพาะ user แอดมินคนนี้
+  localStorage.setItem('bcast_seen_ts_' + currentUser, ts);
   closeBcastModal();
   sendNativeNotif('🍱 - กิน อะไร ดี -', msg, 'broadcast');
   showToast('✅ ส่งแจ้งเตือนแล้ว! รอ device อื่น ~5 วิ', 'success');
@@ -2090,9 +2090,10 @@ async function checkBroadcast() {
     console.log('[bcast] poll result:', res);
     if (!res || !res.value || !res.ts) return;
 
-    const seenKey = 'bcast_seen_ts';
+    // seenKey ต้อง per-user เหมือน QR ไม่งั้น admin set แล้ว user skip
+    const seenKey = 'bcast_seen_ts_' + currentUser;
     const seenTs  = localStorage.getItem(seenKey) || '';
-    console.log('[bcast] res.ts:', res.ts, 'seenTs:', seenTs);
+    console.log('[bcast] res.ts:', res.ts, 'seenTs:', seenTs, 'user:', currentUser);
 
     if (res.ts === seenTs) { console.log('[bcast] already seen, skip'); return; }
 
