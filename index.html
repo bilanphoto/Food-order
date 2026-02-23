@@ -134,7 +134,6 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .qr-notif-items div{padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);}
 .qr-notif-items div:last-child{border:none;}
 .qr-notif-close{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;padding:13px;font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:var(--bg);cursor:pointer;margin-top:6px;}
-.qr-notif-bank{width:100%;background:linear-gradient(135deg,#1a6bb5,#0d4f8a);border:none;border-radius:12px;padding:13px;font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:white;cursor:pointer;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;}
 
 /* PAGE HEADER */
 .page-header{background:var(--card);border-bottom:1px solid var(--border);padding:14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:50;}
@@ -447,7 +446,7 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 </div>
 
 <!-- CONFIRM ORDER MODAL -->
-<div id="qr-notif-overlay" style="display:none;" onclick="if(event.target===this)dismissQrNotif()">
+<div id="qr-notif-overlay" style="display:none;">
   <div class="qr-notif-box">
     <div class="qr-notif-title">💳 กรุณาชำระเงิน</div>
     <div class="qr-notif-name" id="qrn-name"></div>
@@ -575,6 +574,9 @@ function refreshAdminTab() {
 //  BUILD MENU TABS FROM DATA
 // ════════════════════════════════
 function buildMenuFromData(data) {
+  // กรอง custom items ออกก่อน ป้องกันซ้ำทุกครั้งที่ build
+  const cleanData = data.filter(i => !i.isCustom);
+  data = cleanData;
   // เพิ่ม "รายการพิเศษ" ให้ทุกร้านโดยอัตโนมัติ (ไม่บันทึกลง Sheets)
   const restaurants = [...new Set(data.map(i=>i.restaurant))];
   const customs = restaurants.map(rest => {
@@ -1719,9 +1721,8 @@ function showQrNotif(data) {
     '<div>' + it.emoji + ' ' + it.name + ' ×' + it.qty + ' — ฿' + it.actual + '</div>'
   ).join('');
   document.getElementById('qr-notif-overlay').style.display = 'flex';
-  // ซ่อน bottom bar ไม่ให้ทับ popup
-  const bb = document.querySelector('.bottom-bar');
-  if (bb) bb.style.display = 'none';
+  // ซ่อน bottom-bar และ topbar ไม่ให้ทับ popup
+  document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='none');
 
   // Badge API (PWA icon badge)
   updateAppBadge(1);
@@ -1748,9 +1749,8 @@ function fireWebNotif(data) {
     n.onclick = () => {
       window.focus();
       document.getElementById('qr-notif-overlay').style.display = 'flex';
-  // ซ่อน bottom bar ไม่ให้ทับ popup
-  const bb = document.querySelector('.bottom-bar');
-  if (bb) bb.style.display = 'none';
+  // ซ่อน bottom-bar และ topbar ไม่ให้ทับ popup
+  document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='none');
       n.close();
     };
   } catch(e) {}
@@ -1795,9 +1795,8 @@ function openBankingApp() {
 
 function dismissQrNotif() {
   document.getElementById('qr-notif-overlay').style.display = 'none';
-  // คืน bottom bar
-  const bb = document.querySelector('.bottom-bar');
-  if (bb) bb.style.display = '';
+  // คืน bottom-bar และ topbar
+  document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='');
   if (currentUser) {
     // Use seenTs (= notif.ts) so ack.ts >= notif.ts is guaranteed
     const seenTs = localStorage.getItem('qr_seen_ts_' + currentUser) || String(Date.now());
