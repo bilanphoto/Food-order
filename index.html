@@ -135,6 +135,27 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .qr-notif-items div:last-child{border:none;}
 .qr-notif-close{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;padding:13px;font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:var(--bg);cursor:pointer;margin-top:6px;}
 
+/* SPIN WHEEL */
+.spin-float-btn{position:fixed;bottom:80px;right:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:50%;width:54px;height:54px;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(245,166,35,0.5);z-index:200;display:flex;align-items:center;justify-content:center;transition:transform .2s;}
+.spin-float-btn:hover{transform:scale(1.1) rotate(-10deg);}
+.spin-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn .25s ease;}
+.spin-modal-box{background:var(--card);border:2px solid var(--accent);border-radius:24px;padding:20px 18px;max-width:340px;width:100%;text-align:center;position:relative;animation:popUp .35s cubic-bezier(.34,1.56,.64,1);}
+.spin-modal-close{position:absolute;top:12px;right:12px;background:var(--card2);border:none;border-radius:8px;padding:5px 9px;color:var(--text3);cursor:pointer;font-size:14px;}
+.spin-wrap{display:flex;flex-direction:column;align-items:center;padding:20px 14px 40px;}
+.spin-title{font-family:'Mitr',sans-serif;font-size:18px;font-weight:700;color:var(--accent);margin-bottom:16px;text-align:center;}
+.wheel-outer{position:relative;width:300px;height:300px;border-radius:50%;box-shadow:0 0 0 8px var(--accent),0 0 0 12px rgba(245,166,35,0.3),0 8px 32px rgba(0,0,0,0.5);margin-bottom:8px;}
+canvas#spin-canvas{border-radius:50%;display:block;}
+.wheel-pointer{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:32px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));z-index:10;}
+.spin-btn{margin-top:18px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:50px;padding:14px 48px;font-family:'Mitr',sans-serif;font-size:17px;font-weight:700;color:var(--bg);cursor:pointer;box-shadow:0 4px 20px rgba(245,166,35,0.4);transition:transform .15s,box-shadow .15s;}
+.spin-btn:hover{transform:scale(1.04);}
+.spin-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.spin-result{margin-top:16px;background:var(--card);border:2px solid var(--accent);border-radius:16px;padding:14px 20px;text-align:center;min-width:220px;animation:popUp .3s cubic-bezier(.34,1.56,.64,1);}
+.spin-result-emoji{font-size:36px;margin-bottom:4px;}
+.spin-result-name{font-family:'Mitr',sans-serif;font-size:18px;font-weight:700;color:var(--text);}
+.spin-result-rest{font-size:12px;color:var(--text3);margin-top:2px;}
+.spin-result-price{font-family:'Mitr',sans-serif;font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;}
+.spin-add-btn{margin-top:10px;background:var(--green);border:none;border-radius:10px;padding:10px 24px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;}
+
 /* PAGE HEADER */
 .page-header{background:var(--card);border-bottom:1px solid var(--border);padding:14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:50;}
 .back-btn{background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:7px 12px;font-family:'Kanit',sans-serif;font-size:12px;color:var(--text2);cursor:pointer;flex-shrink:0;}
@@ -339,6 +360,7 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 
 <!-- PAGE 2: MENU -->
 <div id="page-menu" class="page">
+  <button class="spin-float-btn" onclick="openSpinModal()" title="สุ่มเมนู">🎰</button>
   <div class="topbar">
     <div class="user-chip" onclick="editName()" title="คลิกเพื่อแก้ชื่อ">👤 <span id="display-name">ชื่อ</span> <span style="font-size:10px;opacity:.6;">✏️</span></div>
     <div class="topbar-btns">
@@ -445,7 +467,34 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
   </div>
 </div>
 
+<!-- SPIN WHEEL MODAL -->
+<div id="spin-modal-overlay" class="spin-modal-overlay" style="display:none;" onclick="if(event.target.id==='spin-modal-overlay')closeSpinModal()">
+  <div class="spin-modal-box">
+    <button class="spin-modal-close" onclick="closeSpinModal()">✕</button>
+    <div class="spin-title">🎰 กิน อะไร ดี?</div>
+    <div class="wheel-outer" style="margin:0 auto 4px;">
+      <div class="wheel-pointer">▼</div>
+      <canvas id="spin-canvas" width="280" height="280"></canvas>
+    </div>
+    <button class="spin-btn" id="spin-btn" onclick="spinWheel()">🎲 หมุน!</button>
+    <div id="spin-result" style="display:none;margin-top:12px;"></div>
+  </div>
+</div>
+
 <!-- CONFIRM ORDER MODAL -->
+<!-- SPIN WHEEL MODAL -->
+<div id="spin-modal-overlay" class="spin-modal-overlay" style="display:none;" onclick="if(event.target.id==='spin-modal-overlay')closeSpinModal()">
+  <div class="spin-modal-box">
+    <button class="spin-modal-close" onclick="closeSpinModal()">✕</button>
+    <div class="spin-title">🎰 กิน อะไร ดี?</div>
+    <div class="wheel-outer" style="margin:0 auto 4px;">
+      <div class="wheel-pointer">▼</div>
+      <canvas id="spin-canvas" width="280" height="280"></canvas>
+    </div>
+    <button class="spin-btn" id="spin-btn" onclick="spinWheel()">🎲 หมุน!</button>
+    <div id="spin-result" style="display:none;margin-top:12px;"></div>
+  </div>
+</div>
 <div id="qr-notif-overlay" style="display:none;">
   <div class="qr-notif-box">
     <div class="qr-notif-title">💳 กรุณาชำระเงิน</div>
@@ -649,6 +698,149 @@ function buildMenuFromData(data) {
     contentsEl.appendChild(cont);
     first = false;
   }
+}
+
+// ════════════════════════════════
+//  SPIN WHEEL
+// ════════════════════════════════
+
+
+let _spinItems = [];
+let _spinAngle = 0;
+let _spinning  = false;
+
+function openSpinModal() {
+  document.getElementById('spin-modal-overlay').style.display = 'flex';
+  document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='none');
+  // init wheel with current menu
+  const items = (menuData||[]).filter(i=>!i.isCustom && i.name && i.price > 0);
+  setTimeout(()=>initSpinWheel(items), 50);
+}
+function closeSpinModal() {
+  document.getElementById('spin-modal-overlay').style.display = 'none';
+  document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='');
+}
+
+function initSpinWheel(items) {
+  _spinItems = items;
+  if (!_spinItems.length) return;
+  _spinAngle = 0;
+  drawWheel(_spinAngle);
+}
+
+const WHEEL_COLORS = [
+  ['#f5a623','#1a0e00'],['#e05c3c','#fff'],['#e8832a','#1a0e00'],
+  ['#c0392b','#fff'],['#f5a623','#1a0e00'],['#e05c3c','#fff'],
+  ['#e8832a','#1a0e00'],['#c0392b','#fff'],['#f5a623','#1a0e00'],
+  ['#e05c3c','#fff'],['#e8832a','#1a0e00'],['#c0392b','#fff'],
+];
+
+function drawWheel(angle) {
+  const canvas = document.getElementById('spin-canvas');
+  if (!canvas || !_spinItems.length) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 140, cy = 140, r = 136;
+  const n = Math.min(_spinItems.length, 12);
+  const items = _spinItems.slice(0, n);
+  const arc = (Math.PI * 2) / n;
+  ctx.clearRect(0,0,280,280);
+
+  items.forEach((item, i) => {
+    const [bg, fg] = WHEEL_COLORS[i % WHEEL_COLORS.length];
+    const start = angle + arc * i - Math.PI/2;
+    const end   = start + arc;
+    // Slice
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = bg;
+    ctx.fill();
+    ctx.strokeStyle = '#3a1a00';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Text
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + arc / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = fg;
+    ctx.font = 'bold 11px Kanit,sans-serif';
+    const label = (item.emoji||'🍽️') + ' ' + (item.name.length > 8 ? item.name.slice(0,8)+'…' : item.name);
+    ctx.fillText(label, r - 8, 4);
+    ctx.restore();
+  });
+
+  // Center circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, 22, 0, Math.PI*2);
+  ctx.fillStyle = '#f5a623';
+  ctx.fill();
+  ctx.strokeStyle = '#3a1a00';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 12, 0, Math.PI*2);
+  ctx.fillStyle = '#c0392b';
+  ctx.fill();
+}
+
+function spinWheel() {
+  if (_spinning || !_spinItems.length) return;
+  _spinning = true;
+  document.getElementById('spin-btn').disabled = true;
+  document.getElementById('spin-result').style.display = 'none';
+
+  const n = Math.min(_spinItems.length, 12);
+  const extraSpins = (5 + Math.floor(Math.random()*5)) * Math.PI * 2;
+  const targetSlice = Math.floor(Math.random() * n);
+  const arc = (Math.PI * 2) / n;
+  // Pointer is at top (−π/2), so target angle makes targetSlice center point up
+  const targetAngle = -(arc * targetSlice + arc/2) + Math.PI/2;
+  const totalRotation = extraSpins + ((targetAngle - _spinAngle) % (Math.PI*2));
+
+  const start = performance.now();
+  const duration = 3500;
+  const startAngle = _spinAngle;
+
+  function easeOut(t) { return 1 - Math.pow(1-t, 4); }
+
+  function frame(now) {
+    const t = Math.min((now - start) / duration, 1);
+    _spinAngle = startAngle + totalRotation * easeOut(t);
+    drawWheel(_spinAngle);
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      _spinAngle = startAngle + totalRotation;
+      drawWheel(_spinAngle);
+      _spinning = false;
+      document.getElementById('spin-btn').disabled = false;
+      showSpinResult(_spinItems[targetSlice]);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function showSpinResult(item) {
+  const el = document.getElementById('spin-result');
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML =
+    '<div class="spin-result-emoji">'+(item.emoji||'🍽️')+'</div>'+
+    '<div class="spin-result-name">'+item.name+'</div>'+
+    '<div class="spin-result-rest">'+item.restaurant+'</div>'+
+    '<div class="spin-result-price">฿'+item.price+'</div>'+
+    '<button class="spin-add-btn" onclick="addSpinToCart(this)" data-id="'+item.id+'">+ เพิ่มเข้าตะกร้า</button>';
+}
+
+function addSpinToCart(btn) {
+  const itemId = btn.dataset ? btn.dataset.id : btn;
+  const item = menuMap[itemId];
+  if (!item) return;
+  chg(itemId, 1);
+  showToast('✅ เพิ่ม '+item.name+' แล้ว', 'success');
+  document.getElementById('spin-result').style.display = 'none';
 }
 
 function escId(s) { return s.replace(/[^a-zA-Z0-9ก-๙]/g,'_'); }
