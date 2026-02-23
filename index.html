@@ -143,8 +143,8 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .spin-modal-close{position:absolute;top:12px;right:12px;background:var(--card2);border:none;border-radius:8px;padding:5px 9px;color:var(--text3);cursor:pointer;font-size:14px;}
 .spin-wrap{display:flex;flex-direction:column;align-items:center;padding:20px 14px 40px;}
 .spin-title{font-family:'Mitr',sans-serif;font-size:18px;font-weight:700;color:var(--accent);margin-bottom:16px;text-align:center;}
-.wheel-outer{position:relative;width:300px;height:300px;border-radius:50%;box-shadow:0 0 0 8px var(--accent),0 0 0 12px rgba(245,166,35,0.3),0 8px 32px rgba(0,0,0,0.5);margin-bottom:8px;}
-canvas#spin-canvas{border-radius:50%;display:block;}
+.wheel-outer{position:relative;width:260px;height:260px;border-radius:50%;box-shadow:0 0 0 6px var(--accent),0 0 0 10px rgba(245,166,35,0.25),0 8px 32px rgba(0,0,0,0.5);margin-bottom:8px;flex-shrink:0;}
+canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
 .wheel-pointer{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:32px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));z-index:10;}
 .spin-btn{margin-top:18px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:50px;padding:14px 48px;font-family:'Mitr',sans-serif;font-size:17px;font-weight:700;color:var(--bg);cursor:pointer;box-shadow:0 4px 20px rgba(245,166,35,0.4);transition:transform .15s,box-shadow .15s;}
 .spin-btn:hover{transform:scale(1.04);}
@@ -474,7 +474,7 @@ canvas#spin-canvas{border-radius:50%;display:block;}
     <div class="spin-title">🎰 กิน อะไร ดี?</div>
     <div class="wheel-outer" style="margin:0 auto 4px;">
       <div class="wheel-pointer">▼</div>
-      <canvas id="spin-canvas" width="280" height="280"></canvas>
+      <canvas id="spin-canvas" width="260" height="260"></canvas>
     </div>
     <button class="spin-btn" id="spin-btn" onclick="spinWheel()">🎲 หมุน!</button>
     <div id="spin-result" style="display:none;margin-top:12px;"></div>
@@ -726,11 +726,11 @@ function drawWheel(angle) {
   const canvas = document.getElementById('spin-canvas');
   if (!canvas || !_spinItems.length) return;
   const ctx = canvas.getContext('2d');
-  const cx = 140, cy = 140, r = 136;
+  const cx = 130, cy = 130, r = 126;
   const n = Math.min(_spinItems.length, 12);
   const items = _spinItems.slice(0, n);
   const arc = (Math.PI * 2) / n;
-  ctx.clearRect(0,0,280,280);
+  ctx.clearRect(0,0,260,260);
 
   items.forEach((item, i) => {
     const [bg, fg] = WHEEL_COLORS[i % WHEEL_COLORS.length];
