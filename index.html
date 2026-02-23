@@ -123,7 +123,7 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .modal-submit:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
 
 /* QR NOTIFICATION POPUP */
-.qr-notif-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:16px 16px 100px;overflow-y:auto;animation:fadeIn .3s ease;}
+.qr-notif-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;animation:fadeIn .3s ease;}
 .qr-notif-box{background:var(--card);border:2px solid var(--accent);border-radius:24px;padding:20px 18px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:popUp .35s cubic-bezier(.34,1.56,.64,1);margin-top:auto;margin-bottom:auto;}
 @keyframes popUp{from{transform:scale(0.7);opacity:0}to{transform:scale(1);opacity:1}}
 .qr-notif-title{font-family:'Mitr',sans-serif;font-size:13px;color:var(--text2);margin-bottom:4px;}
@@ -454,7 +454,6 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="qr-notif-amount" id="qrn-amount"></div>
     <img class="qr-notif-img" id="qrn-img" src="" alt="QR">
     <div class="qr-notif-items" id="qrn-items"></div>
-    <button class="qr-notif-bank" id="qrn-bank-btn" onclick="openBankingApp()">🏦 เปิดแอพธนาคาร</button>
     <button class="qr-notif-close" onclick="dismissQrNotif()">✅ จ่ายแล้ว รับทราบ</button>
   </div>
 </div>
@@ -1720,6 +1719,9 @@ function showQrNotif(data) {
     '<div>' + it.emoji + ' ' + it.name + ' ×' + it.qty + ' — ฿' + it.actual + '</div>'
   ).join('');
   document.getElementById('qr-notif-overlay').style.display = 'flex';
+  // ซ่อน bottom bar ไม่ให้ทับ popup
+  const bb = document.querySelector('.bottom-bar');
+  if (bb) bb.style.display = 'none';
 
   // Badge API (PWA icon badge)
   updateAppBadge(1);
@@ -1746,6 +1748,9 @@ function fireWebNotif(data) {
     n.onclick = () => {
       window.focus();
       document.getElementById('qr-notif-overlay').style.display = 'flex';
+  // ซ่อน bottom bar ไม่ให้ทับ popup
+  const bb = document.querySelector('.bottom-bar');
+  if (bb) bb.style.display = 'none';
       n.close();
     };
   } catch(e) {}
@@ -1790,6 +1795,9 @@ function openBankingApp() {
 
 function dismissQrNotif() {
   document.getElementById('qr-notif-overlay').style.display = 'none';
+  // คืน bottom bar
+  const bb = document.querySelector('.bottom-bar');
+  if (bb) bb.style.display = '';
   if (currentUser) {
     // Use seenTs (= notif.ts) so ack.ts >= notif.ts is guaranteed
     const seenTs = localStorage.getItem('qr_seen_ts_' + currentUser) || String(Date.now());
