@@ -2036,8 +2036,7 @@ function showBcastNotif(msg) {
   sendNativeNotif('🍱 - กิน อะไร ดี -', msg, 'broadcast');
 }
 function closeBcastNotif() {
-  document.getElementById('bcast-notif-overlay').style.display = 'none';
-  document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='');
+  document.getElementById('bcast-notif-bar').style.display = 'none';
 }
 
 function openBankingApp() {
