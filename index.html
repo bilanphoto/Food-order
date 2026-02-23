@@ -2028,26 +2028,29 @@ async function sendBroadcast() {
   // บันทึก broadcast ลง GAS
   jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=broadcast&value=' + encodeURIComponent(msg) + '&ts=' + ts)
     .catch(()=>{});
-  // อัป _lastBcastTs ไม่ให้ poll แสดงซ้ำ
-  _lastBcastTs = ts;
-  localStorage.setItem('last_bcast_ts', ts);
+  // mark as seen ไม่ให้ poll แสดงซ้ำหลัง send
+  localStorage.setItem('bcast_seen_ts', ts);
   closeBcastModal();
   // ส่ง native notification ทันทีไม่รอ poll
   sendNativeNotif('🍱 - กิน อะไร ดี -', msg, 'broadcast');
   showToast('✅ ส่งแจ้งเตือนแล้ว!','success');
 }
 
-// Polling broadcast สำหรับ user
-let _lastBcastTs = localStorage.getItem('last_bcast_ts') || '';
+// Polling broadcast — ใช้ pattern เดียวกับ QR notification
 async function checkBroadcast() {
   if (!currentUser) return;
   try {
     const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=broadcast');
-    if (res && res.value && res.ts && res.ts !== _lastBcastTs) {
-      _lastBcastTs = res.ts;
-      localStorage.setItem('last_bcast_ts', res.ts);
-      showBcastNotif(res.value);
-    }
+    if (!res || !res.value || !res.ts) return;
+
+    // ใช้ localStorage per-key เหมือน QR
+    const seenKey = 'bcast_seen_ts';
+    const seenTs  = localStorage.getItem(seenKey) || '';
+
+    if (res.ts === seenTs) return;  // เคยเห็น ts นี้แล้ว
+
+    localStorage.setItem(seenKey, res.ts);
+    showBcastNotif(res.value);
   } catch(e) {}
 }
 function showBcastNotif(msg) {
