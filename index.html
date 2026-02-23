@@ -1942,11 +1942,12 @@ async function checkQrNotification() {
     const notifKey = encodeURIComponent('qr_' + currentUser);
     const ackKey   = encodeURIComponent('qr_ack_' + currentUser);
 
-    // ส่งทีละ request แทน Promise.all — ลด concurrent JSONP ที่อาจ block กัน
-    const notif = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + notifKey);
-    if (!notif || !notif.value || !notif.ts) return;
+    const [notif, ack] = await Promise.all([
+      jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + notifKey),
+      jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey)
+    ]);
 
-    const ack = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey);
+    if (!notif || !notif.value || !notif.ts) return;
 
     const alreadyPaid = ack && ack.value === 'paid' && ack.ts >= notif.ts;
     if (alreadyPaid) return;
@@ -1957,7 +1958,7 @@ async function checkQrNotification() {
     localStorage.setItem('qr_seen_ts_' + currentUser, notif.ts);
     const data = JSON.parse(notif.value);
     showQrNotif(data);
-  } catch(e) { console.log('[qr] error:', e); }
+  } catch(e) {}
 }
 
 function showQrNotif(data) {
