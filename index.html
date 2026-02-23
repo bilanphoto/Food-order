@@ -5,8 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🍱 - กิน อะไร ดี -</title>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;- กิน อะไร ดี -&quot;,&quot;short_name&quot;:&quot;🍱 อาหาร&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#1a1008&quot;,&quot;theme_color&quot;:&quot;#f5a623&quot;}">
+<link rel="manifest" id="pwa-manifest">
+<script>
+(function(){
+  const manifest = {
+    name: '- กิน อะไร ดี -',
+    short_name: '🍱 อาหาร',
+    display: 'standalone',
+    background_color: '#1a1008',
+    theme_color: '#f5a623',
+    icons: [{src:'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',sizes:'72x72',type:'image/png'}]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+  document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
+})();
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="🍱 อาหาร">
 <style>
