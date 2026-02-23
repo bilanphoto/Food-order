@@ -122,6 +122,21 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .modal-submit:hover{transform:scale(1.02);}
 .modal-submit:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
 
+/* BROADCAST NOTIFICATION MODAL */
+.bcast-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .25s ease;}
+.bcast-modal-box{background:var(--card);border:2px solid var(--accent);border-radius:20px;padding:22px 20px;max-width:360px;width:100%;}
+.bcast-modal-title{font-family:'Mitr',sans-serif;font-size:17px;font-weight:700;color:var(--accent);margin-bottom:14px;text-align:center;}
+.bcast-option{display:block;width:100%;background:var(--card2);border:1.5px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:10px;font-family:'Kanit',sans-serif;font-size:14px;color:var(--text);cursor:pointer;text-align:left;transition:border-color .15s,background .15s;}
+.bcast-option:hover,.bcast-option.selected{border-color:var(--accent);background:rgba(245,166,35,0.1);color:var(--accent);}
+.bcast-textarea{width:100%;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-family:'Kanit',sans-serif;font-size:14px;color:var(--text);resize:none;margin-bottom:12px;box-sizing:border-box;}
+.bcast-textarea:focus{outline:none;border-color:var(--accent);}
+.bcast-send-btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;padding:13px;font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:var(--bg);cursor:pointer;}
+.bcast-cancel-btn{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:11px;font-family:'Kanit',sans-serif;font-size:14px;color:var(--text2);cursor:pointer;margin-top:8px;}
+.bcast-notif-bar{position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,var(--accent),var(--accent2));padding:14px 16px;z-index:9999;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,0.4);animation:slideDown .35s ease;}
+@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+.bcast-notif-text{font-family:'Kanit',sans-serif;font-size:15px;font-weight:600;color:var(--bg);flex:1;}
+.bcast-notif-close{background:rgba(0,0,0,0.15);border:none;border-radius:8px;padding:4px 10px;font-size:13px;color:var(--bg);cursor:pointer;}
+
 /* QR NOTIFICATION POPUP */
 .qr-notif-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;animation:fadeIn .3s ease;}
 .qr-notif-box{background:var(--card);border:2px solid var(--accent);border-radius:24px;padding:20px 18px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:popUp .35s cubic-bezier(.34,1.56,.64,1);margin-top:auto;margin-bottom:auto;}
@@ -399,6 +414,7 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
     <button class="back-btn" onclick="goBack()">← กลับ</button>
     <h2>🔧 Admin</h2>
     <button class="refresh-btn" id="test-conn-btn" onclick="testConnection()" title="ทดสอบการเชื่อมต่อ">🔌</button>
+    <button class="refresh-btn" onclick="openBcastModal()" title="ส่งแจ้งเตือน" style="background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.3);">📣</button>
     <button class="refresh-btn" onclick="fixSheets()" title="แก้ไข Sheets headers">🔧</button>
     <button class="refresh-btn" onclick="refreshAdminTab()">🔄</button>
   </div>
@@ -465,6 +481,24 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
       <button class="edit-name-save" onclick="saveName()">✓ บันทึก</button>
     </div>
   </div>
+</div>
+
+<!-- BROADCAST NOTIFICATION MODAL -->
+<div id="bcast-modal-overlay" class="bcast-modal-overlay" style="display:none;">
+  <div class="bcast-modal-box">
+    <div class="bcast-modal-title">📣 ส่งแจ้งเตือนถึงทุกคน</div>
+    <button class="bcast-option" onclick="selectBcastOption(this)">📢 สั่งข้าว วันนี้ร้าน อ.บ้านโอ่ง ครับ</button>
+    <button class="bcast-option" onclick="selectBcastOption(this)">📢 สั่งข้าว วันนี้ร้าน เฮียหมู ครับ</button>
+    <textarea id="bcast-custom" class="bcast-textarea" rows="3" placeholder="หรือพิมพ์ข้อความเอง..." oninput="deselectBcastOptions()"></textarea>
+    <button class="bcast-send-btn" onclick="sendBroadcast()">📣 ส่งข้อความ</button>
+    <button class="bcast-cancel-btn" onclick="closeBcastModal()">ยกเลิก</button>
+  </div>
+</div>
+
+<!-- BROADCAST NOTIFICATION BAR (shown to users) -->
+<div id="bcast-notif-bar" class="bcast-notif-bar" style="display:none;">
+  <span class="bcast-notif-text" id="bcast-notif-text"></span>
+  <button class="bcast-notif-close" onclick="closeBcastNotif()">✕</button>
 </div>
 
 <!-- SPIN WHEEL MODAL -->
@@ -1863,8 +1897,9 @@ let _qrPollTimer = null;
 
 function startQrPolling() {
   if (_qrPollTimer) return;
-  _qrPollTimer = setInterval(checkQrNotification, 5000);
-  checkQrNotification(); // immediate first check
+  _qrPollTimer = setInterval(()=>{ checkQrNotification(); checkBroadcast(); }, 5000);
+  checkQrNotification();
+  checkBroadcast();
 }
 
 async function checkQrNotification() {
@@ -1952,6 +1987,62 @@ function updateAppBadge(count) {
       count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge();
     }
   } catch(e) {}
+}
+
+// ════════════════════════════════
+//  BROADCAST NOTIFICATION
+// ════════════════════════════════
+function openBcastModal() {
+  document.getElementById('bcast-modal-overlay').style.display = 'flex';
+  document.getElementById('bcast-custom').value = '';
+  document.querySelectorAll('.bcast-option').forEach(b=>b.classList.remove('selected'));
+}
+function closeBcastModal() {
+  document.getElementById('bcast-modal-overlay').style.display = 'none';
+}
+function selectBcastOption(btn) {
+  document.querySelectorAll('.bcast-option').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('bcast-custom').value = '';
+}
+function deselectBcastOptions() {
+  document.querySelectorAll('.bcast-option').forEach(b=>b.classList.remove('selected'));
+}
+async function sendBroadcast() {
+  const selected = document.querySelector('.bcast-option.selected');
+  const custom   = document.getElementById('bcast-custom').value.trim();
+  const msg = selected ? selected.textContent.trim() : custom;
+  if (!msg) { showToast('⚠️ กรุณาเลือกหรือพิมพ์ข้อความ','error'); return; }
+  const ts = String(Date.now());
+  // บันทึก broadcast ลง GAS Settings sheet
+  jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=broadcast&value=' + encodeURIComponent(msg) + '&ts=' + ts)
+    .catch(()=>{});
+  closeBcastModal();
+  showToast('✅ ส่งแจ้งเตือนแล้ว!','success');
+}
+
+// Polling broadcast สำหรับ user
+let _lastBcastTs = localStorage.getItem('last_bcast_ts') || '';
+async function checkBroadcast() {
+  if (!currentUser) return;
+  try {
+    const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=broadcast');
+    if (res && res.value && res.ts && res.ts !== _lastBcastTs) {
+      _lastBcastTs = res.ts;
+      localStorage.setItem('last_bcast_ts', res.ts);
+      showBcastNotif(res.value);
+    }
+  } catch(e) {}
+}
+function showBcastNotif(msg) {
+  const bar = document.getElementById('bcast-notif-bar');
+  document.getElementById('bcast-notif-text').textContent = msg;
+  bar.style.display = 'flex';
+  // auto hide หลัง 8 วิ
+  setTimeout(()=>{ if(bar.style.display!='none') closeBcastNotif(); }, 8000);
+}
+function closeBcastNotif() {
+  document.getElementById('bcast-notif-bar').style.display = 'none';
 }
 
 function openBankingApp() {
