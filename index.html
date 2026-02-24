@@ -598,19 +598,20 @@ function jsonpFetch(url) {
     const script = document.createElement('script');
     const timer = setTimeout(() => {
       delete window[cb];
-      script.remove();
+      if (script.parentNode) script.parentNode.removeChild(script);
       reject(new Error('timeout'));
     }, 20000);
     window[cb] = data => {
       clearTimeout(timer);
       delete window[cb];
-      script.remove();
+      // ลบ script หลัง resolve เสมอ ไม่ใช่ก่อน
+      setTimeout(() => { if (script.parentNode) script.parentNode.removeChild(script); }, 0);
       resolve(data);
     };
     script.onerror = () => {
       clearTimeout(timer);
       delete window[cb];
-      script.remove();
+      if (script.parentNode) script.parentNode.removeChild(script);
       reject(new Error('script error'));
     };
     script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
