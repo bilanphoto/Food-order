@@ -1401,9 +1401,9 @@ function confirmAdminPrices() {
   localStorage.setItem('admin_qr_state', JSON.stringify(qrState));
 
   // ส่ง notification เฉพาะคนที่ยังไม่จ่าย
-  // force ts ใหม่ทุกครั้ง + clear seenTs ตัวเอง
-  const ts = String(Date.now());
-  // clear seenTs ของทุก person ใน batch นี้ เพื่อรับ notification ใหม่ได้
+  // ts ใหม่ทุกครั้ง + random เพื่อไม่ให้ซ้ำ seenTs เดิมบน user device
+  const ts = String(Date.now()) + Math.floor(Math.random()*1000);
+  // clear seenTs ของทุก person บน device นี้
   Object.keys(personData).forEach(person => {
     localStorage.removeItem('qr_seen_ts_' + person);
   });
