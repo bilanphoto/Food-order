@@ -1962,7 +1962,7 @@ async function checkQrNotification() {
     const notifKey = encodeURIComponent('qr_' + currentUser);
     const notif = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + notifKey);
 
-    // QR cleared — ปิด popup ถ้าค้าง + clear seenTs
+    // QR cleared — ปิด popup ถ้าค้าง
     if (!notif || !notif.value || !notif.ts) {
       const overlay = document.getElementById('qr-notif-overlay');
       if (overlay && overlay.style.display !== 'none') {
@@ -1973,16 +1973,18 @@ async function checkQrNotification() {
       return;
     }
 
-    // เคยเห็น ts นี้แล้ว — skip
+    // seenTs check
     const seenTs = localStorage.getItem('qr_seen_ts_' + currentUser) || '';
     if (notif.ts === seenTs) return;
 
-    // ตรวจ ack — เปรียบ Number ไม่ใช่ string
-    const ackKey = encodeURIComponent('qr_ack_' + currentUser);
-    const ack = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey).catch(()=>null);
-    if (ack && ack.value === 'paid' && Number(ack.ts) >= Number(notif.ts)) return;
+    // popup ขึ้นแล้ว — ไม่ต้องแสดงซ้ำ
+    const overlay = document.getElementById('qr-notif-overlay');
+    if (overlay && overlay.style.display === 'flex') {
+      localStorage.setItem('qr_seen_ts_' + currentUser, notif.ts);
+      return;
+    }
 
-    // แสดง QR popup + native notification
+    // แสดง QR popup ทันที ไม่ต้องรอ ack
     localStorage.setItem('qr_seen_ts_' + currentUser, notif.ts);
     showQrNotif(JSON.parse(notif.value));
   } catch(e) {}
@@ -2007,7 +2009,7 @@ function showQrNotif(data) {
   document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='none');
 
   // Badge API (PWA icon badge)
-  updateAppBadge(1);
+  if (typeof updateAppBadge === 'function') updateAppBadge(1);
 
   // Web Notification
   sendNativeNotif('💳 กรุณาชำระเงิน', '👤 ' + data.person + '  ฿' + data.amount, 'qr-payment');
@@ -2188,7 +2190,7 @@ function dismissQrNotif() {
     const ackKey = encodeURIComponent('qr_ack_' + currentUser);
     jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + ackKey + '&value=paid&ts=' + seenTs).catch(()=>{});
   }
-  updateAppBadge(0);
+  if (typeof updateAppBadge === 'function') updateAppBadge(0);
 }
 
 // ════════════════════════════════
