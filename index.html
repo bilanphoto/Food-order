@@ -1396,7 +1396,12 @@ function confirmAdminPrices() {
   localStorage.setItem('admin_qr_state', JSON.stringify(qrState));
 
   // ส่ง notification เฉพาะคนที่ยังไม่จ่าย
+  // force ts ใหม่ทุกครั้ง + clear seenTs ตัวเอง
   const ts = String(Date.now());
+  // clear seenTs ของทุก person ใน batch นี้ เพื่อรับ notification ใหม่ได้
+  Object.keys(personData).forEach(person => {
+    localStorage.removeItem('qr_seen_ts_' + person);
+  });
   const notifiedPersons = Object.keys(personData);
   Object.entries(personData).forEach(([person, data]) => {
     if (paidMap[person]) return;  // จ่ายแล้ว → ข้าม
