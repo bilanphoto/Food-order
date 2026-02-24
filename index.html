@@ -1219,7 +1219,18 @@ function renderAllOrdersTable(rows, container) {
 }
 async function clearAllSheetOrders() {
   if (!confirm('⚠️ ล้างรายการทั้งหมดใน Google Sheets ใช่ไหม?\n(ไม่สามารถกู้คืนได้)')) return;
-  try { await jsonpFetch(SCRIPT_URL+'?action=clear'); localStorage.removeItem('admin_paid'); localStorage.removeItem('admin_qr_state'); showToast('🗑️ ล้างรายการแล้ว','success'); refreshAllOrders(); }
+  try {
+    await jsonpFetch(SCRIPT_URL+'?action=clear');
+    // ลบ QR notif ทุก user ใน GAS เพื่อไม่ให้ popup ค้าง
+    await jsonpFetch(SCRIPT_URL+'?action=clearNotifs').catch(()=>{});
+    // clear localStorage ฝั่ง admin
+    localStorage.removeItem('admin_paid');
+    localStorage.removeItem('admin_qr_state');
+    // clear qr_seen_ts ของ admin user ด้วย เพื่อรับ QR รอบถัดไปได้
+    localStorage.removeItem('qr_seen_ts_' + currentUser);
+    showToast('🗑️ ล้างรายการแล้ว','success');
+    refreshAllOrders();
+  }
   catch(e) { showToast('❌ ล้างไม่สำเร็จ','error'); }
 }
 
@@ -1947,7 +1958,16 @@ async function checkQrNotification() {
       jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey)
     ]);
 
-    if (!notif || !notif.value || !notif.ts) return;
+    if (!notif || !notif.value || !notif.ts) {
+      // QR ถูก clear แล้ว — ปิด popup ถ้าค้างอยู่
+      const overlay = document.getElementById('qr-notif-overlay');
+      if (overlay && overlay.style.display !== 'none') {
+        overlay.style.display = 'none';
+        document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='');
+      }
+      localStorage.removeItem('qr_seen_ts_' + currentUser);
+      return;
+    }
 
     const alreadyPaid = ack && ack.value === 'paid' && ack.ts >= notif.ts;
     if (alreadyPaid) return;
