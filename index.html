@@ -1951,15 +1951,10 @@ async function checkQrNotification() {
   if (!currentUser) return;
   try {
     const notifKey = encodeURIComponent('qr_' + currentUser);
-    const ackKey   = encodeURIComponent('qr_ack_' + currentUser);
+    const notif = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + notifKey);
 
-    const [notif, ack] = await Promise.all([
-      jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + notifKey),
-      jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey)
-    ]);
-
+    // QR cleared — ปิด popup ถ้าค้าง
     if (!notif || !notif.value || !notif.ts) {
-      // QR ถูก clear แล้ว — ปิด popup ถ้าค้างอยู่
       const overlay = document.getElementById('qr-notif-overlay');
       if (overlay && overlay.style.display !== 'none') {
         overlay.style.display = 'none';
@@ -1969,11 +1964,14 @@ async function checkQrNotification() {
       return;
     }
 
-    const alreadyPaid = ack && ack.value === 'paid' && ack.ts >= notif.ts;
-    if (alreadyPaid) return;
-
+    // ถ้าเคยเห็น ts นี้แล้ว — skip
     const seenTs = localStorage.getItem('qr_seen_ts_' + currentUser) || '';
     if (notif.ts === seenTs) return;
+
+    // ตรวจ ack แยก (ไม่ block notif)
+    const ackKey = encodeURIComponent('qr_ack_' + currentUser);
+    const ack = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey).catch(()=>null);
+    if (ack && ack.value === 'paid' && ack.ts >= notif.ts) return;
 
     localStorage.setItem('qr_seen_ts_' + currentUser, notif.ts);
     const data = JSON.parse(notif.value);
@@ -2188,37 +2186,22 @@ function dismissQrNotif() {
 //  INIT
 // ════════════════════════════════
 (async function init() {
-  // isMenuRow: validate it's menu data not orders data
-  // Menu rows have 'category' + 'id', orders have 'timestamp' + 'person'
   function isMenuRow(r) { return r && r.category !== undefined && r.id && !r.timestamp; }
 
+  // ── 1. โหลด localStorage ก่อน — แสดงผลทันที ──────────────
   let loaded = false;
-
-  // 1. Try Sheets (only use if data looks like menus)
   try {
-    const json = await jsonpFetch(SCRIPT_URL + '?action=getMenus');
-    if (json.rows && json.rows.length && isMenuRow(json.rows[0])) {
-      menuData = json.rows; buildEditingMenus(json.rows); renderAllGrids(); loaded = true;
+    const ls = localStorage.getItem('menu_data_v2');
+    if (ls) {
+      const rows = JSON.parse(ls);
+      if (rows.length && isMenuRow(rows[0])) {
+        menuData = rows; buildEditingMenus(rows); renderAllGrids(); loaded = true;
+      }
     }
   } catch(e) {}
-
-  // 2. localStorage fallback
-  if (!loaded) {
-    try {
-      const ls = localStorage.getItem('menu_data_v2');
-      if (ls) {
-        const rows = JSON.parse(ls);
-        if (rows.length && isMenuRow(rows[0])) {
-          menuData = rows; buildEditingMenus(rows); renderAllGrids(); loaded = true;
-        }
-      }
-    } catch(e) {}
-  }
-
-  // 3. Built-in defaults
   if (!loaded) { loadDefaultMenus(); }
 
-  // Auto-skip register if name saved
+  // ── 2. Auto-login ──────────────────────────────────────────
   const saved = localStorage.getItem('food_order_name');
   if (saved) {
     currentUser = saved;
@@ -2227,7 +2210,18 @@ function dismissQrNotif() {
     startQrPolling();
   }
   renderAllGrids();
-  // Load orders badge on startup
+
+  // ── 3. Sync จาก GAS เบื้องหลัง (ไม่บล็อก UI) ─────────────
+  jsonpFetch(SCRIPT_URL + '?action=getMenus').then(json => {
+    if (json && json.rows && json.rows.length && isMenuRow(json.rows[0])) {
+      menuData = json.rows;
+      try { localStorage.setItem('menu_data_v2', JSON.stringify(json.rows)); } catch(x) {}
+      buildEditingMenus(json.rows);
+      renderAllGrids();
+    }
+  }).catch(()=>{});
+
+  // Load orders badge เบื้องหลัง
   jsonpFetch(SCRIPT_URL+'?action=get').then(j=>updateOrdersBadge(j.rows||[])).catch(()=>{});
 })();
 
