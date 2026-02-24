@@ -1220,13 +1220,11 @@ function renderAllOrdersTable(rows, container) {
 async function clearAllSheetOrders() {
   if (!confirm('⚠️ ล้างรายการทั้งหมดใน Google Sheets ใช่ไหม?\n(ไม่สามารถกู้คืนได้)')) return;
   try {
-    await jsonpFetch(SCRIPT_URL+'?action=clear');
-    // ลบ QR notif ทุก user ใน GAS เพื่อไม่ให้ popup ค้าง
+    // clearNotifs ก่อน เพื่อให้ user poll เจอค่าว่างแล้วปิด popup
     await jsonpFetch(SCRIPT_URL+'?action=clearNotifs').catch(()=>{});
-    // clear localStorage ฝั่ง admin
+    await jsonpFetch(SCRIPT_URL+'?action=clear');
     localStorage.removeItem('admin_paid');
     localStorage.removeItem('admin_qr_state');
-    // clear qr_seen_ts ของ admin user ด้วย เพื่อรับ QR รอบถัดไปได้
     localStorage.removeItem('qr_seen_ts_' + currentUser);
     showToast('🗑️ ล้างรายการแล้ว','success');
     refreshAllOrders();
@@ -1953,7 +1951,7 @@ async function checkQrNotification() {
     const notifKey = encodeURIComponent('qr_' + currentUser);
     const notif = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + notifKey);
 
-    // QR cleared — ปิด popup ถ้าค้าง
+    // QR cleared — ปิด popup ถ้าค้าง + clear seenTs
     if (!notif || !notif.value || !notif.ts) {
       const overlay = document.getElementById('qr-notif-overlay');
       if (overlay && overlay.style.display !== 'none') {
@@ -1964,18 +1962,18 @@ async function checkQrNotification() {
       return;
     }
 
-    // ถ้าเคยเห็น ts นี้แล้ว — skip
+    // เคยเห็น ts นี้แล้ว — skip
     const seenTs = localStorage.getItem('qr_seen_ts_' + currentUser) || '';
     if (notif.ts === seenTs) return;
 
-    // ตรวจ ack แยก (ไม่ block notif)
+    // ตรวจ ack — เปรียบ Number ไม่ใช่ string
     const ackKey = encodeURIComponent('qr_ack_' + currentUser);
     const ack = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey).catch(()=>null);
-    if (ack && ack.value === 'paid' && ack.ts >= notif.ts) return;
+    if (ack && ack.value === 'paid' && Number(ack.ts) >= Number(notif.ts)) return;
 
+    // แสดง QR popup + native notification
     localStorage.setItem('qr_seen_ts_' + currentUser, notif.ts);
-    const data = JSON.parse(notif.value);
-    showQrNotif(data);
+    showQrNotif(JSON.parse(notif.value));
   } catch(e) {}
 }
 
