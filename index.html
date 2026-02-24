@@ -1182,7 +1182,15 @@ async function refreshAllOrders() {
   }
 }
 function renderAllOrdersTable(rows, container) {
-  if (!rows.length) { container.innerHTML='<div class="empty-state"><div class="empty-icon">🍽️</div><p>ยังไม่มีการสั่งอาหาร</p></div>'; return; }
+  if (!rows.length) {
+    container.innerHTML='<div class="empty-state"><div class="empty-icon">🍽️</div><p>ยังไม่มีการสั่งอาหาร</p></div>';
+    // ถ้าไม่มี orders แล้ว ล้าง QR cards ด้วย
+    localStorage.removeItem('admin_qr_state');
+    localStorage.removeItem('admin_paid');
+    const wrap = document.getElementById('qr-cards-wrap');
+    if (wrap) wrap.innerHTML = '';
+    return;
+  }
   const grouped={};
   for (const r of rows) { if (!grouped[r.person]) grouped[r.person]=[]; grouped[r.person].push(r); }
   let gt=0, gq=0;
