@@ -336,6 +336,9 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
 .edit-name-btns{display:flex;gap:9px;}
 .edit-name-cancel{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;}
 .edit-name-save{flex:2;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;padding:11px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:var(--bg);cursor:pointer;}
+.admin-toggle-btn{width:100%;background:var(--card2);border:1.5px solid var(--border);border-radius:11px;padding:11px 16px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:600;color:var(--text2);cursor:pointer;margin-bottom:14px;transition:all .2s;text-align:center;}
+.admin-toggle-btn.is-admin{background:rgba(224,92,92,0.12);border-color:rgba(224,92,92,0.4);color:#e05c5c;}
+.admin-toggle-btn:disabled{opacity:0.4;cursor:not-allowed;}
 
 /* STATES */
 .empty-state{text-align:center;padding:55px 20px;color:var(--text3);}
@@ -394,7 +397,7 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
       <button class="cart-btn secondary" onclick="goToAllOrders()">
         📋 รายการทั้งหมด <span class="cart-badge" id="cart-badge">0</span>
       </button>
-      <button class="cart-btn admin-btn" onclick="goToAdmin()">🔧 Admin</button>
+      <button class="cart-btn admin-btn" id="header-admin-btn" onclick="goToAdmin()" style="display:none">🔧 Admin</button>
     </div>
   </div>
   <div class="tabs-wrap">
@@ -488,6 +491,7 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
 <div class="edit-name-overlay" id="edit-name-overlay" onclick="closeEditNameIfOutside(event)">
   <div class="edit-name-box">
     <h3>✏️ แก้ไขชื่อ</h3>
+    <button class="admin-toggle-btn" id="admin-toggle-btn" onclick="toggleAdminRole()">🔧 เป็น Admin</button>
     <input class="edit-name-input" type="text" id="edit-name-input" maxlength="30" placeholder="ชื่อของคุณ">
     <div class="edit-name-btns">
       <button class="edit-name-cancel" onclick="closeEditName()">ยกเลิก</button>
@@ -642,6 +646,7 @@ function editName() {
   document.getElementById('edit-name-input').value = currentUser;
   document.getElementById('edit-name-overlay').classList.add('show');
   setTimeout(() => document.getElementById('edit-name-input').focus(), 80);
+  initAdminRole();  // โหลด admin status ล่าสุด
 }
 function closeEditName() { document.getElementById('edit-name-overlay').classList.remove('show'); }
 function closeEditNameIfOutside(e) { if (e.target.id === 'edit-name-overlay') closeEditName(); }
@@ -653,6 +658,60 @@ function saveName() {
   document.getElementById('display-name').textContent = currentUser;
   closeEditName();
   showToast('✅ บันทึกชื่อแล้ว', 'success');
+}
+
+// ── ADMIN ROLE ──────────────────────────────────────────────
+let _isAdmin = false;
+
+function updateAdminUI() {
+  const headerBtn = document.getElementById('header-admin-btn');
+  const toggleBtn = document.getElementById('admin-toggle-btn');
+  if (headerBtn) headerBtn.style.display = _isAdmin ? '' : 'none';
+  if (toggleBtn) {
+    if (_isAdmin) {
+      toggleBtn.textContent = '👑 Admin อยู่ — กดเพื่อออก';
+      toggleBtn.classList.add('is-admin');
+      toggleBtn.disabled = false;
+    } else {
+      toggleBtn.textContent = '🔧 เป็น Admin';
+      toggleBtn.classList.remove('is-admin');
+      toggleBtn.disabled = false;
+    }
+  }
+}
+
+async function initAdminRole() {
+  try {
+    const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=current_admin');
+    const adminName = (res && res.value) ? res.value : '';
+    _isAdmin = (adminName === currentUser);
+    if (!_isAdmin) localStorage.removeItem('is_admin');
+  } catch(e) {}
+  updateAdminUI();
+}
+
+async function toggleAdminRole() {
+  const btn = document.getElementById('admin-toggle-btn');
+  if (btn) btn.disabled = true;
+  try {
+    if (_isAdmin) {
+      // ออกจาก admin
+      jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=current_admin&value=&ts=' + Date.now()).catch(()=>{});
+      _isAdmin = false;
+      localStorage.removeItem('is_admin');
+      showToast('👤 เปลี่ยนเป็น User แล้ว', 'success');
+    } else {
+      // override admin ได้เลย ไม่ต้องรอ
+      jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=current_admin&value=' + encodeURIComponent(currentUser) + '&ts=' + Date.now()).catch(()=>{});
+      _isAdmin = true;
+      localStorage.setItem('is_admin', '1');
+      showToast('👑 เป็น Admin แล้ว!', 'success');
+    }
+  } catch(e) {
+    showToast('❌ เกิดข้อผิดพลาด', 'error');
+  }
+  updateAdminUI();
+  if (btn) btn.disabled = false;
 }
 
 // ════════════════════════════════
@@ -1221,7 +1280,7 @@ function renderAllOrdersTable(rows, container) {
     '<div style="display:flex;gap:14px;flex-wrap:wrap;"><span class="stat-pill">👥 <strong>'+Object.keys(grouped).length+'</strong> คน</span><span class="stat-pill">🍽️ <strong>'+gq+'</strong> รายการ</span></div>'+
     '<div class="table-footer-total">฿'+gt+'</div></div></div>'+
     '<div class="person-sums-wrap">'+personSums+'</div>'+
-    '<button class="clear-btn" onclick="clearAllSheetOrders()">🗑️ ล้างรายการทั้งหมด (เริ่มรอบใหม่)</button>';
+    (_isAdmin ? '<button class="clear-btn" onclick="clearAllSheetOrders()">🗑️ ล้างรายการทั้งหมด (เริ่มรอบใหม่)</button>' : '');
 }
 async function clearAllSheetOrders() {
   if (!confirm('⚠️ ล้างรายการทั้งหมดใน Google Sheets ใช่ไหม?\n(ไม่สามารถกู้คืนได้)')) return;
@@ -2234,6 +2293,19 @@ function dismissQrNotif() {
 
   // Load orders badge เบื้องหลัง
   jsonpFetch(SCRIPT_URL+'?action=get').then(j=>updateOrdersBadge(j.rows||[])).catch(()=>{});
+
+  // โหลด admin role เบื้องหลัง
+  if (saved) {
+    _isAdmin = localStorage.getItem('is_admin') === '1';
+    updateAdminUI();
+    // verify กับ GAS เบื้องหลัง
+    jsonpFetch(SCRIPT_URL + '?action=getNotif&key=current_admin').then(res => {
+      const adminName = (res && res.value) ? res.value : '';
+      _isAdmin = (adminName === currentUser);
+      if (!_isAdmin) localStorage.removeItem('is_admin');
+      updateAdminUI();
+    }).catch(()=>{});
+  }
 })();
 
 function loadDefaultMenus() {
