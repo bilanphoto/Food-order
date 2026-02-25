@@ -6,6 +6,9 @@
 <title>🍱 - กิน อะไร ดี -</title>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" id="pwa-manifest">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 <script>
 (function(){
   const manifest = {
@@ -437,7 +440,6 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
     <h2>🔧 Admin</h2>
     <button class="refresh-btn" id="test-conn-btn" onclick="testConnection()" title="ทดสอบการเชื่อมต่อ">🔌</button>
     <button class="refresh-btn" onclick="openBcastModal()" title="ส่งแจ้งเตือน" style="background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.3);">📣</button>
-    <button class="refresh-btn" onclick="testNotification()" title="ทดสอบแจ้งเตือน" style="background:rgba(100,200,100,0.15);border:1px solid rgba(100,200,100,0.3);">🔔</button>
     <button class="refresh-btn" onclick="refreshAdminTab()">🔄</button>
   </div>
   <!-- Admin sub-tabs -->
@@ -2118,10 +2120,53 @@ function testNotification() {
   showToast('📲 ส่งแจ้งเตือนทดสอบแล้ว','success');
 }
 
+// ── FCM CONFIG ─────────────────────────────────────────────
+const FCM_VAPID = 'BCDO1-KdKRN1lDXQ3MxpA2AwxLfYOa_BC-a5W8ntzqukVMLkOXOLckaRh5Hkljx-jDkU6tBbpZ0sEfeRMz_2McE';
+let _fcmMessaging = null;
+
 async function initNotifications() {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'default') {
     await Notification.requestPermission();
+  }
+  if (Notification.permission !== 'granted') return;
+  try {
+    // Init Firebase
+    if (!firebase.apps.length) {
+      firebase.initializeApp({
+        apiKey: "AIzaSyB99OE3ts0yE0y6qqAAO6UJxBI6_Envtaw",
+        authDomain: "food-order-2746e.firebaseapp.com",
+        projectId: "food-order-2746e",
+        storageBucket: "food-order-2746e.firebasestorage.app",
+        messagingSenderId: "428851873208",
+        appId: "1:428851873208:web:1a50a03e6edecc6ef5bb4d"
+      });
+    }
+    _fcmMessaging = firebase.messaging();
+
+    // Register service worker
+    const reg = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+    
+    // Get FCM token
+    const token = await _fcmMessaging.getToken({ 
+      vapidKey: FCM_VAPID,
+      serviceWorkerRegistration: reg
+    });
+    
+    if (token && currentUser) {
+      // บันทึก token ลง GAS เพื่อให้ admin ส่ง push ได้
+      const key = encodeURIComponent('fcm_token_' + currentUser);
+      jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + encodeURIComponent(token) + '&ts=' + Date.now()).catch(()=>{});
+    }
+
+    // รับ foreground notification
+    _fcmMessaging.onMessage(payload => {
+      const { title, body } = payload.notification || {};
+      sendNativeNotif(title || '🍱 - กิน อะไร ดี -', body || '', payload.data && payload.data.tag || 'food-order');
+    });
+  } catch(e) {
+    console.warn('FCM init error:', e);
+    // fallback: ใช้ native notification แทน
   }
 }
 
