@@ -337,8 +337,15 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
 .edit-name-cancel{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;}
 .edit-name-save{flex:2;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;padding:11px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:var(--bg);cursor:pointer;}
 .admin-toggle-btn{width:100%;background:var(--card2);border:1.5px solid var(--border);border-radius:11px;padding:11px 16px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:600;color:var(--text2);cursor:pointer;margin-bottom:14px;transition:all .2s;text-align:center;}
-.admin-toggle-btn.is-admin{background:rgba(224,92,92,0.12);border-color:rgba(224,92,92,0.4);color:#e05c5c;}
+.admin-toggle-btn.is-admin{background:rgba(60,200,100,0.15);border-color:rgba(60,200,100,0.5);color:#3cc864;}
 .admin-toggle-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
+.confirm-box{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 24px;width:100%;max-width:320px;box-shadow:var(--shadow);text-align:center;}
+.confirm-box h3{font-family:'Mitr',sans-serif;font-size:16px;font-weight:600;color:var(--text);margin-bottom:8px;}
+.confirm-box p{font-family:'Kanit',sans-serif;font-size:13px;color:var(--text2);margin-bottom:20px;}
+.confirm-btns{display:flex;gap:10px;}
+.confirm-cancel{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:600;color:var(--text2);cursor:pointer;}
+.confirm-ok{flex:1;background:linear-gradient(135deg,#e05c5c,#c0392b);border:none;border-radius:10px;padding:12px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:700;color:#fff;cursor:pointer;}
 
 /* STATES */
 .empty-state{text-align:center;padding:55px 20px;color:var(--text3);}
@@ -431,7 +438,6 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
     <button class="refresh-btn" id="test-conn-btn" onclick="testConnection()" title="ทดสอบการเชื่อมต่อ">🔌</button>
     <button class="refresh-btn" onclick="openBcastModal()" title="ส่งแจ้งเตือน" style="background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.3);">📣</button>
     <button class="refresh-btn" onclick="testNotification()" title="ทดสอบแจ้งเตือน" style="background:rgba(100,200,100,0.15);border:1px solid rgba(100,200,100,0.3);">🔔</button>
-    <button class="refresh-btn" onclick="fixSheets()" title="แก้ไข Sheets headers">🔧</button>
     <button class="refresh-btn" onclick="refreshAdminTab()">🔄</button>
   </div>
   <!-- Admin sub-tabs -->
@@ -669,11 +675,11 @@ function updateAdminUI() {
   if (headerBtn) headerBtn.style.display = _isAdmin ? '' : 'none';
   if (toggleBtn) {
     if (_isAdmin) {
-      toggleBtn.textContent = '👑 Admin อยู่ — กดเพื่อออก';
+      toggleBtn.textContent = '👑 Admin';
       toggleBtn.classList.add('is-admin');
       toggleBtn.disabled = false;
     } else {
-      toggleBtn.textContent = '🔧 เป็น Admin';
+      toggleBtn.textContent = '🔧 Admin';
       toggleBtn.classList.remove('is-admin');
       toggleBtn.disabled = false;
     }
@@ -1283,7 +1289,8 @@ function renderAllOrdersTable(rows, container) {
     (_isAdmin ? '<button class="clear-btn" onclick="clearAllSheetOrders()">🗑️ ล้างรายการทั้งหมด (เริ่มรอบใหม่)</button>' : '');
 }
 async function clearAllSheetOrders() {
-  if (!confirm('⚠️ ล้างรายการทั้งหมดใน Google Sheets ใช่ไหม?\n(ไม่สามารถกู้คืนได้)')) return;
+  const ok = await showConfirmModal('🗑️ ล้างรายการทั้งหมด ใช่ไหม?', '(ไม่สามารถกู้คืนได้)');
+  if (!ok) return;
   try {
     // clearNotifs ก่อน เพื่อให้ user poll เจอค่าว่างแล้วปิด popup
     await jsonpFetch(SCRIPT_URL+'?action=clearNotifs').catch(()=>{});
@@ -1995,6 +2002,25 @@ async function downloadQR(url, filename) {
   }
 }
 
+function showConfirmModal(title, msg) {
+  return new Promise(resolve => {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent = msg;
+    const overlay = document.getElementById('confirm-overlay');
+    overlay.style.display = 'flex';
+    const okBtn = document.getElementById('confirm-ok-btn');
+    const cancelBtn = document.getElementById('confirm-cancel-btn');
+    function cleanup(result) {
+      overlay.style.display = 'none';
+      okBtn.replaceWith(okBtn.cloneNode(true));
+      cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+      resolve(result);
+    }
+    document.getElementById('confirm-ok-btn').onclick = () => cleanup(true);
+    document.getElementById('confirm-cancel-btn').onclick = () => cleanup(false);
+  });
+}
+
 let _tt;
 function showToast(msg,type='success') {
   const t=document.getElementById('toast');
@@ -2356,5 +2382,15 @@ function loadDefaultMenus() {
   buildEditingMenus(defaults);
 }
 </script>
+<div class="confirm-overlay" id="confirm-overlay" style="display:none">
+  <div class="confirm-box">
+    <h3 id="confirm-title">- กิน อะไร ดี -</h3>
+    <p id="confirm-msg"></p>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" id="confirm-cancel-btn">ยกเลิก</button>
+      <button class="confirm-ok" id="confirm-ok-btn">ยืนยัน</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
