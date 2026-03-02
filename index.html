@@ -164,6 +164,15 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .qr-notif-items div{padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);}
 .qr-notif-items div:last-child{border:none;}
 .qr-notif-close{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;padding:13px;font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;color:var(--bg);cursor:pointer;margin-top:6px;}
+.slip-upload-btn{width:100%;background:var(--card2);border:2px dashed var(--border);border-radius:12px;padding:11px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;margin-top:6px;transition:border-color .2s;}
+.slip-upload-btn:hover{border-color:var(--accent);color:var(--accent);}
+.slip-upload-btn.has-slip{border-color:#4caf7d;color:#4caf7d;background:rgba(76,175,125,0.08);}
+.slip-preview{width:100%;border-radius:12px;margin-top:8px;max-height:180px;object-fit:cover;display:none;border:2px solid var(--accent);}
+.slip-preview.show{display:block;}
+.slip-badge{display:inline-block;background:#4caf7d;color:#fff;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;margin-left:6px;}
+.slip-thumb{width:100%;border-radius:10px;margin:8px 0 4px;cursor:pointer;max-height:140px;object-fit:cover;border:2px solid #4caf7d;}
+.slip-modal{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px;}
+.slip-modal img{max-width:100%;max-height:85vh;border-radius:12px;object-fit:contain;}
 
 /* SPIN WHEEL */
 .spin-float-btn{position:fixed;bottom:80px;right:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:50%;width:54px;height:54px;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(245,166,35,0.5);z-index:200;display:flex;align-items:center;justify-content:center;transition:transform .2s;}
@@ -560,6 +569,11 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
         📋 คัดลอกเลข
       </button>
     </div>
+    <input type="file" id="slip-file-input" accept="image/*" style="display:none" onchange="handleSlipSelect(event)">
+    <button class="slip-upload-btn" id="slip-upload-btn" onclick="document.getElementById('slip-file-input').click()">
+      📎 แนบสลิปโอนเงิน
+    </button>
+    <img class="slip-preview" id="slip-preview" src="" alt="สลิป">
     <button class="qr-notif-close" onclick="dismissQrNotif()">✅ จ่ายแล้ว รับทราบ</button>
   </div>
 </div>
@@ -1382,11 +1396,14 @@ function restoreQrSection() {
           '</a>'+
         '</div>'+
         '<div class="qr-items-list">'+itemRows+'</div>'+
+        '<div id="slip-wrap-'+personId+'" style="margin:0 14px 4px;"></div>'+
         '<div style="display:flex;gap:8px;margin:0 14px 14px;">'+
           '<button class="qr-save-btn" style="flex:1" onclick="downloadQR(this.dataset.url,this.dataset.fn)" data-url="'+(data.qrUrl||'')+'" data-fn="QR_'+person+'_'+(data.amount||0)+'THB.png">💾 บันทึก QR</button>'+
           '<button class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(this.dataset.url)" data-url="'+(data.qrUrl||'').replace('.png','')+'">🔗 เปิด QR</button>'+
         '</div>';
       wrap.appendChild(card);
+      // โหลดสลิปถ้ามี
+      if (!isPaid) loadSlipForAdmin(person, personId);
     } catch(err) { console.error('restoreQrSection card error:', person, err); }
   });
 
@@ -2329,7 +2346,88 @@ function copyPromptPay() {
   });
 }
 
+// ── SLIP ADMIN VIEW ─────────────────────────────────────────
+async function loadSlipForAdmin(person, personId) {
+  try {
+    const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + encodeURIComponent('slip_' + person));
+    if (!res || !res.value) return;
+    const wrap = document.getElementById('slip-wrap-' + personId);
+    if (!wrap) return;
+    wrap.innerHTML = '<div style="font-size:11px;color:#4caf7d;margin-bottom:4px;">📎 สลิปจาก '+person+'</div>'+
+      '<img class="slip-thumb" src="'+res.value+'" onclick="showSlipModal(this.src)" alt="สลิป">';
+  } catch(e) {}
+}
+
+function showSlipModal(src) {
+  const modal = document.createElement('div');
+  modal.className = 'slip-modal';
+  modal.onclick = () => modal.remove();
+  modal.innerHTML = '<img src="'+src+'" alt="สลิป">';
+  document.body.appendChild(modal);
+}
+
+// ── SLIP UPLOAD ─────────────────────────────────────────────
+function handleSlipSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      // บีบอัดรูปให้เล็กลง max 600px
+      const canvas = document.createElement('canvas');
+      const maxSize = 600;
+      let w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const base64 = canvas.toDataURL('image/jpeg', 0.7);
+      // แสดง preview
+      const preview = document.getElementById('slip-preview');
+      preview.src = base64;
+      preview.classList.add('show');
+      // เปลี่ยนปุ่ม
+      const btn = document.getElementById('slip-upload-btn');
+      btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน';
+      btn.classList.add('has-slip');
+      // ส่งขึ้น GAS
+      uploadSlip(base64);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function uploadSlip(base64) {
+  if (!currentUser) return;
+  const key = encodeURIComponent('slip_' + currentUser);
+  const val = encodeURIComponent(base64);
+  // ส่งผ่าน POST เพราะ base64 ยาว
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'saveSlip', key: 'slip_' + currentUser, value: base64 })
+  }).catch(() => {
+    // fallback jsonp (อาจ truncate)
+    jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + val.substring(0, 1500) + '&ts=' + Date.now()).catch(()=>{});
+  });
+  showToast('📎 อัปโหลดสลิปแล้ว', 'success');
+}
+
+function resetSlipUpload() {
+  const preview = document.getElementById('slip-preview');
+  if (preview) { preview.src = ''; preview.classList.remove('show'); }
+  const btn = document.getElementById('slip-upload-btn');
+  if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.classList.remove('has-slip'); }
+  const input = document.getElementById('slip-file-input');
+  if (input) input.value = '';
+}
+
 function dismissQrNotif() {
+  resetSlipUpload();
   document.getElementById('qr-notif-overlay').style.display = 'none';
   // คืน bottom-bar และ topbar
   document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='');
