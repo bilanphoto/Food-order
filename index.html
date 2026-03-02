@@ -1,3 +1,5 @@
+
+​PHALAT SINSIWAPORN​
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -2184,13 +2186,13 @@ async function initNotifications() {
 
     // Register service worker
     const reg = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-    
+   
     // Get FCM token
-    const token = await _fcmMessaging.getToken({ 
+    const token = await _fcmMessaging.getToken({
       vapidKey: FCM_VAPID,
       serviceWorkerRegistration: reg
     });
-    
+   
     if (token && currentUser) {
       // บันทึก token ลง GAS เพื่อให้ admin ส่ง push ได้
       const key = encodeURIComponent('fcm_token_' + currentUser);
@@ -2297,7 +2299,7 @@ function openBankingApp() {
 
   // ลองเปิด promptpay:// ก่อน — ถ้าไม่มีแอพ fallback เปิด QR image ใน browser
   const fallbackUrl = btn ? btn.dataset.url : '';
-  
+ 
   // สร้าง hidden link แล้วคลิก
   const a = document.createElement('a');
   a.href = uri;
