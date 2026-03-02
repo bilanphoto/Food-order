@@ -1410,6 +1410,9 @@ function restoreQrSection() {
   // Always show section if we have state, even if some cards failed
   document.getElementById('admin-qr-section').style.display = 'block';
 
+  // Start slip polling
+  startSlipPolling();
+
   // Resume polling for unpaid
   const unpaid = Object.keys(qrState).filter(p => !paidMap[p]);
   if (unpaid.length) startAdminAckPolling(unpaid, '0');
@@ -2347,15 +2350,34 @@ function copyPromptPay() {
 }
 
 // ── SLIP ADMIN VIEW ─────────────────────────────────────────
+const _slipCache = {};
 async function loadSlipForAdmin(person, personId) {
   try {
     const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + encodeURIComponent('slip_' + person));
     if (!res || !res.value) return;
+    if (_slipCache[person] === res.ts) return; // ไม่ต้อง update ถ้า ts เหมือนเดิม
+    _slipCache[person] = res.ts;
     const wrap = document.getElementById('slip-wrap-' + personId);
     if (!wrap) return;
     wrap.innerHTML = '<div style="font-size:11px;color:#4caf7d;margin-bottom:4px;">📎 สลิปจาก '+person+'</div>'+
       '<img class="slip-thumb" src="'+res.value+'" onclick="showSlipModal(this.src)" alt="สลิป">';
   } catch(e) {}
+}
+
+let _slipPollingStarted = false;
+function startSlipPolling() {
+  if (_slipPollingStarted) return;
+  _slipPollingStarted = true;
+  setInterval(() => {
+    if (!_isAdmin) return;
+    const cards = document.querySelectorAll('.qr-card:not(.paid)');
+    cards.forEach(card => {
+      const person = card.getAttribute('data-person');
+      if (!person) return;
+      const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
+      loadSlipForAdmin(person, personId);
+    });
+  }, 8000);
 }
 
 function showSlipModal(src) {
