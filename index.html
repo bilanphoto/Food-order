@@ -1396,10 +1396,9 @@ function restoreQrSection() {
           '</a>'+
         '</div>'+
         '<div class="qr-items-list">'+itemRows+'</div>'+
-        '<div id="slip-wrap-'+personId+'" style="margin:0 14px 4px;"></div>'+
         '<div style="display:flex;gap:8px;margin:0 14px 14px;">'+
           '<button class="qr-save-btn" style="flex:1" onclick="downloadQR(this.dataset.url,this.dataset.fn)" data-url="'+(data.qrUrl||'')+'" data-fn="QR_'+person+'_'+(data.amount||0)+'THB.png">💾 บันทึก QR</button>'+
-          '<button class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(this.dataset.url)" data-url="'+(data.qrUrl||'').replace('.png','')+'">🔗 เปิด QR</button>'+
+          '<button id="slip-btn-'+personId+'" class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(this.dataset.url)" data-url="'+(data.qrUrl||'').replace('.png','')+'">🔗 เปิด QR</button>'+
         '</div>';
       wrap.appendChild(card);
       // โหลดสลิปถ้ามี
@@ -2355,12 +2354,17 @@ async function loadSlipForAdmin(person, personId) {
   try {
     const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + encodeURIComponent('slip_' + person));
     if (!res || !res.value) return;
-    if (_slipCache[person] === res.ts) return; // ไม่ต้อง update ถ้า ts เหมือนเดิม
+    if (_slipCache[person] === res.ts) return;
     _slipCache[person] = res.ts;
-    const wrap = document.getElementById('slip-wrap-' + personId);
-    if (!wrap) return;
-    wrap.innerHTML = '<div style="font-size:11px;color:#4caf7d;margin-bottom:4px;">📎 สลิปจาก '+person+'</div>'+
-      '<img class="slip-thumb" src="'+res.value+'" onclick="showSlipModal(this.src)" alt="สลิป">';
+    // เปลี่ยนปุ่ม "เปิด QR" เป็น "ดูสลิป"
+    const btn = document.getElementById('slip-btn-' + personId);
+    if (!btn) return;
+    btn.textContent = '📎 ดูสลิป';
+    btn.style.background = 'rgba(76,175,125,0.15)';
+    btn.style.color = '#4caf7d';
+    btn.style.border = '1px solid rgba(76,175,125,0.4)';
+    btn.onclick = () => showSlipModal(res.value);
+    btn.removeAttribute('data-url');
   } catch(e) {}
 }
 
