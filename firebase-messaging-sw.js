@@ -1,6 +1,3 @@
-// Firebase Cloud Messaging Service Worker
-// วางไฟล์นี้ที่ root ของ GitHub Pages: /Food-order/firebase-messaging-sw.js
-
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
@@ -15,20 +12,25 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// รับ background notification
 messaging.onBackgroundMessage(payload => {
   const { title, body, icon } = payload.notification || {};
-  self.registration.showNotification(title || '🍱 - กิน อะไร ดี -', {
-    body: body || '',
-    icon: icon || 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
-    badge: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
-    tag: payload.data && payload.data.tag || 'food-order',
-    requireInteraction: true,
-    data: payload.data || {}
+  const tag = (payload.data && payload.data.tag) || 'food-order';
+
+  // เช็คว่ามี notification tag นี้อยู่แล้วไหม → ถ้ามีให้ replace
+  self.registration.getNotifications({ tag }).then(existing => {
+    existing.forEach(n => n.close());
+    self.registration.showNotification(title || '🍱 - กิน อะไร ดี -', {
+      body: body || '',
+      icon: icon || 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
+      badge: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
+      tag: tag,
+      renotify: false,
+      requireInteraction: true,
+      data: payload.data || {}
+    });
   });
 });
 
-// คลิก notification → เปิดแอพ
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil(
