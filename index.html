@@ -2118,9 +2118,7 @@ function showQrNotif(data) {
 
   // Badge API (PWA icon badge)
   if (typeof updateAppBadge === 'function') updateAppBadge(1);
-
-  // Web Notification
-  sendNativeNotif('💳 กรุณาชำระเงิน', '👤 ' + data.person + '  ฿' + data.amount, 'qr-payment');
+  // ไม่ส่ง native notif ตรงนี้ — FCM จะส่งเอง (ทั้ง foreground และ background)
 }
 
 // ── Native Notification System ─────────────────────────
@@ -2180,10 +2178,10 @@ async function initNotifications() {
       jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + encodeURIComponent(token) + '&ts=' + Date.now()).catch(()=>{});
     }
 
-    // รับ foreground notification
+    // foreground: FCM จะไม่แสดง notification อัตโนมัติ
+    // ให้ SW จัดการ background เท่านั้น เพื่อไม่ให้เด้งซ้ำ
     _fcmMessaging.onMessage(payload => {
-      const { title, body } = payload.notification || {};
-      sendNativeNotif(title || '🍱 - กิน อะไร ดี -', body || '', payload.data && payload.data.tag || 'food-order');
+      // ไม่ทำอะไร — popup QR ในแอพจะแสดงแทน
     });
   } catch(e) {
     console.warn('FCM init error:', e);
@@ -2253,7 +2251,7 @@ async function checkBroadcast() {
 }
 function showBcastNotif(msg) {
   // Native notification ก่อนเสมอ (ทำงานแม้อยู่หน้าไหนก็ได้)
-  sendNativeNotif('🍱 - กิน อะไร ดี -', msg, 'broadcast');
+  // ไม่ส่ง native notif — FCM ส่งให้แล้ว
   // In-app bar (optional)
   const bar = document.getElementById('bcast-notif-bar');
   const txt = document.getElementById('bcast-notif-text');
