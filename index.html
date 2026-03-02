@@ -636,11 +636,24 @@ function jsonpFetch(url) {
 // ════════════════════════════════
 document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
 
-function doRegister() {
+async function isNameTaken(name) {
+  try {
+    const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + encodeURIComponent('online_' + name));
+    if (res && res.value === '1') return true;
+  } catch(e) {}
+  return false;
+}
+
+async function doRegister() {
   const val = document.getElementById('name-input').value.trim();
   if (!val) { showToast('⚠️ กรุณาใส่ชื่อก่อน', 'error'); return; }
+  // เช็คชื่อซ้ำกับ user ที่ online อยู่
+  const taken = await isNameTaken(val);
+  if (taken) { showToast('⚠️ ชื่อ "' + val + '" มีคนใช้อยู่แล้ว กรุณาเปลี่ยนชื่อ', 'error'); return; }
   currentUser = val;
   localStorage.setItem('food_order_name', currentUser);
+  // บันทึก online status
+  jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + encodeURIComponent('online_' + currentUser) + '&value=1&ts=' + Date.now()).catch(()=>{});
   document.getElementById('display-name').textContent = currentUser;
   showPage('page-menu');
   renderAllGrids();
@@ -658,11 +671,19 @@ function editName() {
 }
 function closeEditName() { document.getElementById('edit-name-overlay').classList.remove('show'); }
 function closeEditNameIfOutside(e) { if (e.target.id === 'edit-name-overlay') closeEditName(); }
-function saveName() {
+async function saveName() {
   const val = document.getElementById('edit-name-input').value.trim();
   if (!val) { showToast('⚠️ กรุณาใส่ชื่อก่อน', 'error'); return; }
+  if (val !== currentUser) {
+    const taken = await isNameTaken(val);
+    if (taken) { showToast('⚠️ ชื่อ "' + val + '" มีคนใช้อยู่แล้ว กรุณาเปลี่ยนชื่อ', 'error'); return; }
+  }
+  // ลบ online status ชื่อเก่า
+  jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + encodeURIComponent('online_' + currentUser) + '&value=0&ts=' + Date.now()).catch(()=>{});
   currentUser = val;
   localStorage.setItem('food_order_name', currentUser);
+  // บันทึก online status ชื่อใหม่
+  jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + encodeURIComponent('online_' + currentUser) + '&value=1&ts=' + Date.now()).catch(()=>{});
   document.getElementById('display-name').textContent = currentUser;
   closeEditName();
   showToast('✅ บันทึกชื่อแล้ว', 'success');
