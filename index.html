@@ -2403,8 +2403,8 @@ function handleSlipSelect(event) {
     img.onload = function() {
       // บีบอัดรูปให้เล็กลง max 300px quality 0.4 เพื่อให้พอดี URL
       const canvas = document.createElement('canvas');
-      // บีบพอสมควร — จะส่งแบบ chunked
-      let maxSize = 400, quality = 0.6;
+      // ไม่บีบมาก — chunked upload รับได้ทุกขนาด
+      let maxSize = 1200, quality = 0.85;
       let w = img.width, h = img.height;
       if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
       else { w = Math.round(w * maxSize / h); h = maxSize; }
