@@ -2427,12 +2427,29 @@ function handleSlipSelect(event) {
 
 function uploadSlip(base64) {
   if (!currentUser) return;
-  const key = encodeURIComponent('slip_' + currentUser);
-  const val = encodeURIComponent(base64);
-  const ts = String(Date.now());
-  jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + val + '&ts=' + ts)
-    .then(() => showToast('📎 อัปโหลดสลิปแล้ว', 'success'))
-    .catch(() => showToast('❌ อัปโหลดไม่สำเร็จ', 'error'));
+  const btn = document.getElementById('slip-upload-btn');
+  if (btn) { btn.textContent = '⏳ กำลังอัปโหลด...'; btn.disabled = true; }
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ action: 'saveSlip', person: currentUser, base64: base64 })
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res && res.success) {
+      showToast('📎 อัปโหลดสลิปแล้ว', 'success');
+      if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
+    } else {
+      showToast('❌ อัปโหลดไม่สำเร็จ: ' + (res&&res.error||''), 'error');
+      if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
+    }
+  })
+  .catch(e => {
+    showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
+    console.error('uploadSlip:', e);
+    if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
+  });
 }
 
 function resetSlipUpload() {
