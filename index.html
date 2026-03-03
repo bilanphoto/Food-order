@@ -1,5 +1,3 @@
-
-​PHALAT SINSIWAPORN​
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -2186,13 +2184,13 @@ async function initNotifications() {
 
     // Register service worker
     const reg = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-   
+    
     // Get FCM token
-    const token = await _fcmMessaging.getToken({
+    const token = await _fcmMessaging.getToken({ 
       vapidKey: FCM_VAPID,
       serviceWorkerRegistration: reg
     });
-   
+    
     if (token && currentUser) {
       // บันทึก token ลง GAS เพื่อให้ admin ส่ง push ได้
       const key = encodeURIComponent('fcm_token_' + currentUser);
@@ -2299,7 +2297,7 @@ function openBankingApp() {
 
   // ลองเปิด promptpay:// ก่อน — ถ้าไม่มีแอพ fallback เปิด QR image ใน browser
   const fallbackUrl = btn ? btn.dataset.url : '';
- 
+  
   // สร้าง hidden link แล้วคลิก
   const a = document.createElement('a');
   a.href = uri;
@@ -2429,20 +2427,38 @@ function handleSlipSelect(event) {
   reader.readAsDataURL(file);
 }
 
-function uploadSlip(base64) {
+async function uploadSlip(base64) {
   if (!currentUser) return;
-  const key = encodeURIComponent('slip_' + currentUser);
-  const val = encodeURIComponent(base64);
-  // ส่งผ่าน POST เพราะ base64 ยาว
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'saveSlip', key: 'slip_' + currentUser, value: base64 })
-  }).catch(() => {
-    // fallback jsonp (อาจ truncate)
-    jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + val.substring(0, 1500) + '&ts=' + Date.now()).catch(()=>{});
-  });
-  showToast('📎 อัปโหลดสลิปแล้ว', 'success');
+  try {
+    // บีบอัดให้เล็กลงอีก ถ้ายังใหญ่เกิน
+    let data = base64;
+    if (data.length > 50000) {
+      // บีบเพิ่มอีก
+      const img = new Image();
+      await new Promise(resolve => { img.onload = resolve; img.src = data; });
+      const canvas = document.createElement('canvas');
+      const maxSize = 400;
+      let w = img.width, h = img.height;
+      if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+      else { w = Math.round(w * maxSize / h); h = maxSize; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      data = canvas.toDataURL('image/jpeg', 0.5);
+    }
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'saveSlip', key: 'slip_' + currentUser, value: data, ts: String(Date.now()) })
+    });
+    const json = await res.json();
+    if (json && json.success) {
+      showToast('📎 อัปโหลดสลิปแล้ว', 'success');
+    } else {
+      showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
+    }
+  } catch(e) {
+    showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
+  }
 }
 
 function resetSlipUpload() {
