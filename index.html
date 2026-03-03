@@ -2403,17 +2403,17 @@ function handleSlipSelect(event) {
     img.onload = function() {
       // บีบอัดรูปให้เล็กลง max 300px quality 0.4 เพื่อให้พอดี URL
       const canvas = document.createElement('canvas');
-      // บีบซ้ำจนกว่า base64 จะ < 50000 chars
-      let maxSize = 300, quality = 0.4;
+      // บีบซ้ำจนกว่า URL จะ < 7000 chars
+      let maxSize = 200, quality = 0.3;
       let w = img.width, h = img.height;
       if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
       else { w = Math.round(w * maxSize / h); h = maxSize; }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       let base64 = canvas.toDataURL('image/jpeg', quality);
-      // ถ้ายังใหญ่เกิน ลด quality ลงอีก
-      while (base64.length > 50000 && quality > 0.1) {
-        quality -= 0.1;
+      // ลด quality ลงเรื่อยๆ จนกว่า base64 จะพอดี
+      while (base64.length > 4500 && quality > 0.05) {
+        quality = Math.round((quality - 0.05) * 100) / 100;
         base64 = canvas.toDataURL('image/jpeg', quality);
       }
       // แสดง preview
