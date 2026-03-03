@@ -1491,9 +1491,10 @@ function confirmAdminPrices() {
       '<div class="qr-items-list">'+itemRows+'</div>'+
       '<div style="display:flex;gap:8px;margin:0 14px 14px;">'+
         '<button class="qr-save-btn" style="flex:1" onclick="downloadQR(\''+qrUrl+'.png\',\'QR_'+person+'_'+amount+'THB.png\')">💾 บันทึก QR</button>'+
-        '<button class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(\''+qrUrl+'\',\'_blank\')">🔗 เปิด QR</button>'+
+        '<button id="slip-btn-'+personId+'" class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(\''+qrUrl+'\',\'_blank\')" data-url="'+qrUrl+'">🔗 เปิด QR</button>'+
       '</div>';
     wrap.appendChild(card);
+    loadSlipForAdmin(person, personId);
   });
   document.getElementById('admin-qr-section').style.display='block';
   document.getElementById('admin-qr-section').scrollIntoView({behavior:'smooth'});
