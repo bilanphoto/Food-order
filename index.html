@@ -2400,17 +2400,15 @@ function handleSlipSelect(event) {
   reader.onload = function(e) {
     const img = new Image();
     img.onload = function() {
-      // บีบอัดรูปให้เล็กลง max 600px
+      // บีบอัดรูปให้เล็กลง max 300px quality 0.4 เพื่อให้พอดี URL
       const canvas = document.createElement('canvas');
-      const maxSize = 600;
+      const maxSize = 300;
       let w = img.width, h = img.height;
-      if (w > maxSize || h > maxSize) {
-        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
-        else { w = Math.round(w * maxSize / h); h = maxSize; }
-      }
+      if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+      else { w = Math.round(w * maxSize / h); h = maxSize; }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      const base64 = canvas.toDataURL('image/jpeg', 0.7);
+      const base64 = canvas.toDataURL('image/jpeg', 0.4);
       // แสดง preview
       const preview = document.getElementById('slip-preview');
       preview.src = base64;
@@ -2419,7 +2417,7 @@ function handleSlipSelect(event) {
       const btn = document.getElementById('slip-upload-btn');
       btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน';
       btn.classList.add('has-slip');
-      // ส่งขึ้น GAS
+      // ส่งขึ้น GAS โดยตรงจาก canvas นี้เลย
       uploadSlip(base64);
     };
     img.src = e.target.result;
@@ -2427,34 +2425,14 @@ function handleSlipSelect(event) {
   reader.readAsDataURL(file);
 }
 
-async function uploadSlip(base64) {
+function uploadSlip(base64) {
   if (!currentUser) return;
-  try {
-    // บีบอัดให้เล็กลงจนพอดีกับ URL parameter (~8000 chars)
-    let data = base64;
-    const img = new Image();
-    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = data; });
-    const canvas = document.createElement('canvas');
-    // ลดขนาดให้เล็กพอ
-    let quality = 0.4;
-    let maxSize = 300;
-    let w = img.width, h = img.height;
-    if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
-    else { w = Math.round(w * maxSize / h); h = maxSize; }
-    canvas.width = w; canvas.height = h;
-    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-    data = canvas.toDataURL('image/jpeg', quality);
-
-    // ส่งผ่าน jsonpFetch (GET) — base64 ขนาดเล็กพอแล้ว
-    const key = encodeURIComponent('slip_' + currentUser);
-    const val = encodeURIComponent(data);
-    const ts = String(Date.now());
-    await jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + val + '&ts=' + ts);
-    showToast('📎 อัปโหลดสลิปแล้ว', 'success');
-  } catch(e) {
-    showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
-    console.error('uploadSlip error:', e);
-  }
+  const key = encodeURIComponent('slip_' + currentUser);
+  const val = encodeURIComponent(base64);
+  const ts = String(Date.now());
+  jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + val + '&ts=' + ts)
+    .then(() => showToast('📎 อัปโหลดสลิปแล้ว', 'success'))
+    .catch(() => showToast('❌ อัปโหลดไม่สำเร็จ', 'error'));
 }
 
 function resetSlipUpload() {
