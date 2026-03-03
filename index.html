@@ -2430,34 +2430,30 @@ function handleSlipSelect(event) {
 async function uploadSlip(base64) {
   if (!currentUser) return;
   try {
-    // บีบอัดให้เล็กลงอีก ถ้ายังใหญ่เกิน
+    // บีบอัดให้เล็กลงจนพอดีกับ URL parameter (~8000 chars)
     let data = base64;
-    if (data.length > 50000) {
-      // บีบเพิ่มอีก
-      const img = new Image();
-      await new Promise(resolve => { img.onload = resolve; img.src = data; });
-      const canvas = document.createElement('canvas');
-      const maxSize = 400;
-      let w = img.width, h = img.height;
-      if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
-      else { w = Math.round(w * maxSize / h); h = maxSize; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      data = canvas.toDataURL('image/jpeg', 0.5);
-    }
-    const res = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'saveSlip', key: 'slip_' + currentUser, value: data, ts: String(Date.now()) })
-    });
-    const json = await res.json();
-    if (json && json.success) {
-      showToast('📎 อัปโหลดสลิปแล้ว', 'success');
-    } else {
-      showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
-    }
+    const img = new Image();
+    await new Promise(resolve => { img.onload = resolve; img.src = data; });
+    const canvas = document.createElement('canvas');
+    // ลดขนาดให้เล็กพอ
+    let quality = 0.4;
+    let maxSize = 300;
+    let w = img.width, h = img.height;
+    if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+    else { w = Math.round(w * maxSize / h); h = maxSize; }
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    data = canvas.toDataURL('image/jpeg', quality);
+
+    // ส่งผ่าน jsonpFetch (GET) — base64 ขนาดเล็กพอแล้ว
+    const key = encodeURIComponent('slip_' + currentUser);
+    const val = encodeURIComponent(data);
+    const ts = String(Date.now());
+    await jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + val + '&ts=' + ts);
+    showToast('📎 อัปโหลดสลิปแล้ว', 'success');
   } catch(e) {
     showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
+    console.error('uploadSlip error:', e);
   }
 }
 
