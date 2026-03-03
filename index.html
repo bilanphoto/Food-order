@@ -2403,19 +2403,14 @@ function handleSlipSelect(event) {
     img.onload = function() {
       // บีบอัดรูปให้เล็กลง max 300px quality 0.4 เพื่อให้พอดี URL
       const canvas = document.createElement('canvas');
-      // บีบซ้ำจนกว่า URL จะ < 7000 chars
-      let maxSize = 200, quality = 0.3;
+      // บีบพอสมควร — จะส่งแบบ chunked
+      let maxSize = 400, quality = 0.6;
       let w = img.width, h = img.height;
       if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
       else { w = Math.round(w * maxSize / h); h = maxSize; }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       let base64 = canvas.toDataURL('image/jpeg', quality);
-      // ลด quality ลงเรื่อยๆ จนกว่า base64 จะพอดี
-      while (base64.length > 4500 && quality > 0.05) {
-        quality = Math.round((quality - 0.05) * 100) / 100;
-        base64 = canvas.toDataURL('image/jpeg', quality);
-      }
       // แสดง preview
       const preview = document.getElementById('slip-preview');
       preview.src = base64;
@@ -2432,33 +2427,35 @@ function handleSlipSelect(event) {
   reader.readAsDataURL(file);
 }
 
-function uploadSlip(base64) {
+async function uploadSlip(base64) {
   if (!currentUser) return;
   const btn = document.getElementById('slip-upload-btn');
   if (btn) { btn.textContent = '⏳ กำลังอัปโหลด...'; btn.disabled = true; }
 
-  // ส่งผ่าน jsonpFetch — ต้องบีบให้เล็กพอก่อน
-  const key = encodeURIComponent('slip_' + currentUser);
-  const val = encodeURIComponent(base64);
-  const ts = String(Date.now());
-  const url = SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + val + '&ts=' + ts;
+  try {
+    const CHUNK = 3000; // chars ต่อ chunk
+    const ts = String(Date.now());
+    const key = 'slip_' + currentUser;
+    const total = Math.ceil(base64.length / CHUNK);
 
-  console.log('slip url length:', url.length, 'base64 length:', base64.length);
-  if (url.length > 7500) {
-    showToast('❌ รูปใหญ่เกินไป กรุณาใช้รูปที่เล็กกว่านี้', 'error');
+    // ส่งทีละ chunk
+    for (let i = 0; i < total; i++) {
+      const chunk = base64.substring(i * CHUNK, (i + 1) * CHUNK);
+      const url = SCRIPT_URL + '?action=saveSlipChunk'
+        + '&key=' + encodeURIComponent(key)
+        + '&chunk=' + encodeURIComponent(chunk)
+        + '&idx=' + i
+        + '&total=' + total
+        + '&ts=' + ts;
+      await jsonpFetch(url);
+    }
+
+    showToast('📎 อัปโหลดสลิปแล้ว', 'success');
+    if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
+  } catch(e) {
+    showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
     if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
-    return;
   }
-
-  jsonpFetch(url)
-    .then(() => {
-      showToast('📎 อัปโหลดสลิปแล้ว', 'success');
-      if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
-    })
-    .catch(() => {
-      showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
-      if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
-    });
 }
 
 function resetSlipUpload() {
