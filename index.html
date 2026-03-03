@@ -1401,8 +1401,8 @@ function restoreQrSection() {
           '<button id="slip-btn-'+personId+'" class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(this.dataset.url)" data-url="'+(data.qrUrl||'').replace('.png','')+'">🔗 เปิด QR</button>'+
         '</div>';
       wrap.appendChild(card);
-      // โหลดสลิปถ้ามี
-      if (!isPaid) loadSlipForAdmin(person, personId);
+      // โหลดสลิปถ้ามี (โหลดทั้ง paid และ unpaid)
+      loadSlipForAdmin(person, personId);
     } catch(err) { console.error('restoreQrSection card error:', person, err); }
   });
 
@@ -2375,7 +2375,7 @@ function startSlipPolling() {
   setInterval(() => {
     if (!_isAdmin) return;
     const cards = document.querySelectorAll('.qr-card:not(.paid)');
-    cards.forEach(card => {
+    document.querySelectorAll('.qr-card').forEach(card => {
       const person = card.getAttribute('data-person');
       if (!person) return;
       const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
