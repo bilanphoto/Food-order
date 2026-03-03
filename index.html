@@ -2443,6 +2443,13 @@ function uploadSlip(base64) {
   const ts = String(Date.now());
   const url = SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + val + '&ts=' + ts;
 
+  console.log('slip url length:', url.length, 'base64 length:', base64.length);
+  if (url.length > 7500) {
+    showToast('❌ รูปใหญ่เกินไป กรุณาใช้รูปที่เล็กกว่านี้', 'error');
+    if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
+    return;
+  }
+
   jsonpFetch(url)
     .then(() => {
       showToast('📎 อัปโหลดสลิปแล้ว', 'success');
