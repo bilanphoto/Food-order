@@ -451,7 +451,6 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
     <button class="refresh-btn" onclick="openBcastModal()" title="ส่งแจ้งเตือน" style="background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.3);">📣</button>
     <button class="refresh-btn" onclick="refreshAdminTab()">🔄</button>
   </div>
-  <!-- Admin sub-tabs -->
   <div class="admin-tabs-wrap">
     <div class="admin-tabs">
       <button class="admin-tab-btn active" onclick="switchAdminTab('admin-price-tab',this)">💰 ยืนยันราคา</button>
@@ -459,7 +458,6 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
     </div>
   </div>
 
-  <!-- TAB: ยืนยันราคา -->
   <div class="admin-tab-content active" id="admin-price-tab">
     <div class="admin-phone-bar">
       <label>📱 PromptPay:</label>
@@ -479,7 +477,6 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
     </div>
   </div>
 
-  <!-- TAB: จัดการเมนู -->
   <div class="admin-tab-content" id="admin-menu-tab">
     <div class="menu-editor-wrap" id="menu-editor-wrap">
       <div class="loading-state"><div class="spinner"></div><br>กำลังโหลด...</div>
@@ -487,7 +484,6 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
     <div class="me-save-bar">
       <div class="me-save-info" id="me-save-info">แก้ไขเมนูแล้วกดบันทึก</div>
       <button class="me-save-btn" onclick="saveMenusToSheet()">💾 บันทึกเมนู</button>
-
     </div>
   </div>
 </div>
@@ -529,7 +525,7 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
   </div>
 </div>
 
-<!-- BROADCAST POPUP (same style as QR notify) -->
+<!-- BROADCAST POPUP -->
 <div id="bcast-notif-overlay" style="display:none;">
   <div class="qr-notif-box" style="max-width:320px;">
     <div class="qr-notif-title">📣 แจ้งเตือนจากแอดมิน</div>
@@ -595,29 +591,16 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
 <div class="toast" id="toast"></div>
 
 <script>
-// ════════════════════════════════
-//  CONFIG
-// ════════════════════════════════
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxbqpxW808gr-iWr-4KNN8qTCLsfYN2nXBxvaWlU31Xj6FnsXgMqP01s_od_A5zr-0W/exec';
 
-// ════════════════════════════════
-//  STATE
-// ════════════════════════════════
 let currentUser = '';
 let localCart   = {};
-// Dynamic menu: [{restaurant, restaurantEmoji, category, id, name, desc, price, emoji, tag}]
 let menuData    = [];
-let menuMap     = {}; // id→item, always in sync with menuData
-// Admin editing copy
-let editingMenus = {}; // {restName: {emoji, categories: {catName: [{id,name,desc,price,emoji,tag}]}}}
+let menuMap     = {};
+let editingMenus = {};
 let adminRows   = [];
+let emojiPickerTarget = null;
 
-// emoji callback
-let emojiPickerTarget = null; // { type:'rest'|'item', restKey, catKey, idx }
-
-// ════════════════════════════════
-//  JSONP
-// ════════════════════════════════
 function jsonpFetch(url) {
   return new Promise((resolve, reject) => {
     const cb = '_cb' + Date.now() + Math.random().toString(36).slice(2);
@@ -630,7 +613,6 @@ function jsonpFetch(url) {
     window[cb] = data => {
       clearTimeout(timer);
       delete window[cb];
-      // ลบ script หลัง resolve เสมอ ไม่ใช่ก่อน
       setTimeout(() => { if (script.parentNode) script.parentNode.removeChild(script); }, 0);
       resolve(data);
     };
@@ -645,9 +627,6 @@ function jsonpFetch(url) {
   });
 }
 
-// ════════════════════════════════
-//  REGISTER
-// ════════════════════════════════
 document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
 
 async function isNameTaken(name) {
@@ -661,12 +640,10 @@ async function isNameTaken(name) {
 async function doRegister() {
   const val = document.getElementById('name-input').value.trim();
   if (!val) { showToast('⚠️ กรุณาใส่ชื่อก่อน', 'error'); return; }
-  // เช็คชื่อซ้ำกับ user ที่ online อยู่
   const taken = await isNameTaken(val);
   if (taken) { showToast('⚠️ ชื่อ "' + val + '" มีคนใช้อยู่แล้ว กรุณาเปลี่ยนชื่อ', 'error'); return; }
   currentUser = val;
   localStorage.setItem('food_order_name', currentUser);
-  // บันทึก online status
   jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + encodeURIComponent('online_' + currentUser) + '&value=1&ts=' + Date.now()).catch(()=>{});
   document.getElementById('display-name').textContent = currentUser;
   showPage('page-menu');
@@ -674,14 +651,11 @@ async function doRegister() {
   startQrPolling();
 }
 
-// ════════════════════════════════
-//  EDIT NAME
-// ════════════════════════════════
 function editName() {
   document.getElementById('edit-name-input').value = currentUser;
   document.getElementById('edit-name-overlay').classList.add('show');
   setTimeout(() => document.getElementById('edit-name-input').focus(), 80);
-  initAdminRole();  // โหลด admin status ล่าสุด
+  initAdminRole();
 }
 function closeEditName() { document.getElementById('edit-name-overlay').classList.remove('show'); }
 function closeEditNameIfOutside(e) { if (e.target.id === 'edit-name-overlay') closeEditName(); }
@@ -692,37 +666,25 @@ async function saveName() {
     const taken = await isNameTaken(val);
     if (taken) { showToast('⚠️ ชื่อ "' + val + '" มีคนใช้อยู่แล้ว กรุณาเปลี่ยนชื่อ', 'error'); return; }
   }
-  // ลบ online status ชื่อเก่า
   jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + encodeURIComponent('online_' + currentUser) + '&value=0&ts=' + Date.now()).catch(()=>{});
   currentUser = val;
   localStorage.setItem('food_order_name', currentUser);
-  // บันทึก online status ชื่อใหม่
   jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + encodeURIComponent('online_' + currentUser) + '&value=1&ts=' + Date.now()).catch(()=>{});
   document.getElementById('display-name').textContent = currentUser;
   closeEditName();
   showToast('✅ บันทึกชื่อแล้ว', 'success');
 }
 
-// ── ADMIN ROLE ──────────────────────────────────────────────
 let _isAdmin = false;
-
 function updateAdminUI() {
   const headerBtn = document.getElementById('header-admin-btn');
   const toggleBtn = document.getElementById('admin-toggle-btn');
   if (headerBtn) headerBtn.style.display = _isAdmin ? '' : 'none';
   if (toggleBtn) {
-    if (_isAdmin) {
-      toggleBtn.textContent = '👑 Admin';
-      toggleBtn.classList.add('is-admin');
-      toggleBtn.disabled = false;
-    } else {
-      toggleBtn.textContent = '🔧 Admin';
-      toggleBtn.classList.remove('is-admin');
-      toggleBtn.disabled = false;
-    }
+    if (_isAdmin) { toggleBtn.textContent = '👑 Admin'; toggleBtn.classList.add('is-admin'); toggleBtn.disabled = false; }
+    else { toggleBtn.textContent = '🔧 Admin'; toggleBtn.classList.remove('is-admin'); toggleBtn.disabled = false; }
   }
 }
-
 async function initAdminRole() {
   try {
     const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=current_admin');
@@ -732,34 +694,24 @@ async function initAdminRole() {
   } catch(e) {}
   updateAdminUI();
 }
-
 async function toggleAdminRole() {
   const btn = document.getElementById('admin-toggle-btn');
   if (btn) btn.disabled = true;
   try {
     if (_isAdmin) {
-      // ออกจาก admin
       jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=current_admin&value=&ts=' + Date.now()).catch(()=>{});
-      _isAdmin = false;
-      localStorage.removeItem('is_admin');
+      _isAdmin = false; localStorage.removeItem('is_admin');
       showToast('👤 เปลี่ยนเป็น User แล้ว', 'success');
     } else {
-      // override admin ได้เลย ไม่ต้องรอ
       jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=current_admin&value=' + encodeURIComponent(currentUser) + '&ts=' + Date.now()).catch(()=>{});
-      _isAdmin = true;
-      localStorage.setItem('is_admin', '1');
+      _isAdmin = true; localStorage.setItem('is_admin', '1');
       showToast('👑 เป็น Admin แล้ว!', 'success');
     }
-  } catch(e) {
-    showToast('❌ เกิดข้อผิดพลาด', 'error');
-  }
+  } catch(e) { showToast('❌ เกิดข้อผิดพลาด', 'error'); }
   updateAdminUI();
   if (btn) btn.disabled = false;
 }
 
-// ════════════════════════════════
-//  NAV
-// ════════════════════════════════
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -781,63 +733,35 @@ function refreshAdminTab() {
   else loadAdminPriceTab();
 }
 
-// ════════════════════════════════
-//  BUILD MENU TABS FROM DATA
-// ════════════════════════════════
 function buildMenuFromData(data) {
-  // กรอง custom items ออกก่อน ป้องกันซ้ำทุกครั้งที่ build
   const cleanData = data.filter(i => !i.isCustom);
   data = cleanData;
-  // เพิ่ม "รายการพิเศษ" ให้ทุกร้านโดยอัตโนมัติ (ไม่บันทึกลง Sheets)
   const restaurants = [...new Set(data.map(i=>i.restaurant))];
   const customs = restaurants.map(rest => {
     const sample = data.find(i=>i.restaurant===rest)||{};
-    return {
-      id: 'custom_'+rest.replace(/[^a-zA-Z0-9]/g,''),
-      restaurant: rest,
-      restaurantEmoji: sample.restaurantEmoji||'🍽️',
-      category: '✏️ รายการพิเศษ',
-      name: '',           // blank — user types it
-      desc: 'พิมพ์ชื่อและราคาเอง',
-      price: 0,
-      emoji: '✏️',
-      tag: '',
-      isCustom: true
-    };
+    return { id:'custom_'+rest.replace(/[^a-zA-Z0-9]/g,''), restaurant:rest, restaurantEmoji:sample.restaurantEmoji||'🍽️', category:'✏️ รายการพิเศษ', name:'', desc:'พิมพ์ชื่อและราคาเอง', price:0, emoji:'✏️', tag:'', isCustom:true };
   });
   const allData = [...data, ...customs];
-  menuData = allData;
-  menuMap = {};
+  menuData = allData; menuMap = {};
   allData.forEach(function(i){ menuMap[i.id] = i; });
-  const tabsEl    = document.getElementById('menu-tabs');
+  const tabsEl = document.getElementById('menu-tabs');
   const contentsEl = document.getElementById('menu-tab-contents');
-  tabsEl.innerHTML = '';
-  contentsEl.innerHTML = '';
-
-  if (!data.length) {
-    contentsEl.innerHTML = '<div class="empty-menu-hint">ยังไม่มีเมนู — ไปที่ 🔧 Admin เพื่อเพิ่มเมนูก่อน</div>';
-    return;
-  }
-
-  // Group: restaurant -> category -> items
+  tabsEl.innerHTML = ''; contentsEl.innerHTML = '';
+  if (!data.length) { contentsEl.innerHTML = '<div class="empty-menu-hint">ยังไม่มีเมนู — ไปที่ 🔧 Admin เพื่อเพิ่มเมนูก่อน</div>'; return; }
   const restMap = {};
   for (const item of allData) {
     if (!restMap[item.restaurant]) restMap[item.restaurant] = { emoji: item.restaurantEmoji||'🍽️', cats: {} };
     if (!restMap[item.restaurant].cats[item.category]) restMap[item.restaurant].cats[item.category] = [];
     restMap[item.restaurant].cats[item.category].push(item);
   }
-
   let first = true;
   for (const [restName, restVal] of Object.entries(restMap)) {
     const tabId = 'tab-' + restName.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
-    // Tab button
     const btn = document.createElement('button');
     btn.className = 'tab-btn' + (first ? ' active' : '');
     btn.innerHTML = restVal.emoji + ' ' + restName;
     btn.onclick = function() { switchMenuTab(tabId, btn); };
     tabsEl.appendChild(btn);
-
-    // Tab content
     const cont = document.createElement('div');
     cont.className = 'tab-content' + (first ? ' active' : '');
     cont.id = tabId;
@@ -854,19 +778,10 @@ function buildMenuFromData(data) {
   }
 }
 
-// ════════════════════════════════
-//  SPIN WHEEL
-// ════════════════════════════════
-
-
-let _spinItems = [];
-let _spinAngle = 0;
-let _spinning  = false;
-
+let _spinItems = [], _spinAngle = 0, _spinning = false;
 function openSpinModal() {
   document.getElementById('spin-modal-overlay').style.display = 'flex';
   document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='none');
-  // init wheel with current menu
   const items = (menuData||[]).filter(i=>!i.isCustom && i.name && i.price > 0);
   setTimeout(()=>initSpinWheel(items), 50);
 }
@@ -874,21 +789,8 @@ function closeSpinModal() {
   document.getElementById('spin-modal-overlay').style.display = 'none';
   document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='');
 }
-
-function initSpinWheel(items) {
-  _spinItems = items;
-  if (!_spinItems.length) return;
-  _spinAngle = 0;
-  drawWheel(_spinAngle);
-}
-
-const WHEEL_COLORS = [
-  ['#f5a623','#1a0e00'],['#e05c3c','#fff'],['#e8832a','#1a0e00'],
-  ['#c0392b','#fff'],['#f5a623','#1a0e00'],['#e05c3c','#fff'],
-  ['#e8832a','#1a0e00'],['#c0392b','#fff'],['#f5a623','#1a0e00'],
-  ['#e05c3c','#fff'],['#e8832a','#1a0e00'],['#c0392b','#fff'],
-];
-
+function initSpinWheel(items) { _spinItems = items; if (!_spinItems.length) return; _spinAngle = 0; drawWheel(_spinAngle); }
+const WHEEL_COLORS = [['#f5a623','#1a0e00'],['#e05c3c','#fff'],['#e8832a','#1a0e00'],['#c0392b','#fff'],['#f5a623','#1a0e00'],['#e05c3c','#fff'],['#e8832a','#1a0e00'],['#c0392b','#fff'],['#f5a623','#1a0e00'],['#e05c3c','#fff'],['#e8832a','#1a0e00'],['#c0392b','#fff']];
 function drawWheel(angle) {
   const canvas = document.getElementById('spin-canvas');
   if (!canvas || !_spinItems.length) return;
@@ -898,157 +800,74 @@ function drawWheel(angle) {
   const items = _spinItems.slice(0, n);
   const arc = (Math.PI * 2) / n;
   ctx.clearRect(0,0,260,260);
-
   items.forEach((item, i) => {
     const [bg, fg] = WHEEL_COLORS[i % WHEEL_COLORS.length];
-    const start = angle + arc * i - Math.PI/2;
-    const end   = start + arc;
-    // Slice
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r, start, end);
-    ctx.closePath();
-    ctx.fillStyle = bg;
-    ctx.fill();
-    ctx.strokeStyle = '#3a1a00';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    // Text
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(start + arc / 2);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = fg;
-    ctx.font = 'bold 11px Kanit,sans-serif';
+    const start = angle + arc * i - Math.PI/2, end = start + arc;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, start, end); ctx.closePath();
+    ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = '#3a1a00'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(start + arc / 2); ctx.textAlign = 'right';
+    ctx.fillStyle = fg; ctx.font = 'bold 11px Kanit,sans-serif';
     const label = (item.emoji||'🍽️') + ' ' + (item.name.length > 8 ? item.name.slice(0,8)+'…' : item.name);
-    ctx.fillText(label, r - 8, 4);
-    ctx.restore();
+    ctx.fillText(label, r - 8, 4); ctx.restore();
   });
-
-  // Center circle
-  ctx.beginPath();
-  ctx.arc(cx, cy, 22, 0, Math.PI*2);
-  ctx.fillStyle = '#f5a623';
-  ctx.fill();
-  ctx.strokeStyle = '#3a1a00';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(cx, cy, 12, 0, Math.PI*2);
-  ctx.fillStyle = '#c0392b';
-  ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, 22, 0, Math.PI*2); ctx.fillStyle = '#f5a623'; ctx.fill();
+  ctx.strokeStyle = '#3a1a00'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI*2); ctx.fillStyle = '#c0392b'; ctx.fill();
 }
-
 function spinWheel() {
   if (_spinning || !_spinItems.length) return;
-  _spinning = true;
-  document.getElementById('spin-btn').disabled = true;
+  _spinning = true; document.getElementById('spin-btn').disabled = true;
   document.getElementById('spin-result').style.display = 'none';
-
   const n = Math.min(_spinItems.length, 12);
   const extraSpins = (5 + Math.floor(Math.random()*5)) * Math.PI * 2;
   const targetSlice = Math.floor(Math.random() * n);
   const arc = (Math.PI * 2) / n;
-  // Pointer is at top (−π/2), so target angle makes targetSlice center point up
   const targetAngle = -(arc * targetSlice + arc/2) + Math.PI/2;
   const totalRotation = extraSpins + ((targetAngle - _spinAngle) % (Math.PI*2));
-
-  const start = performance.now();
-  const duration = 3500;
-  const startAngle = _spinAngle;
-
+  const start = performance.now(), duration = 3500, startAngle = _spinAngle;
   function easeOut(t) { return 1 - Math.pow(1-t, 4); }
-
   function frame(now) {
     const t = Math.min((now - start) / duration, 1);
     _spinAngle = startAngle + totalRotation * easeOut(t);
     drawWheel(_spinAngle);
-    if (t < 1) {
-      requestAnimationFrame(frame);
-    } else {
-      _spinAngle = startAngle + totalRotation;
-      drawWheel(_spinAngle);
-      _spinning = false;
-      document.getElementById('spin-btn').disabled = false;
-      showSpinResult(_spinItems[targetSlice]);
-    }
+    if (t < 1) { requestAnimationFrame(frame); }
+    else { _spinAngle = startAngle + totalRotation; drawWheel(_spinAngle); _spinning = false; document.getElementById('spin-btn').disabled = false; showSpinResult(_spinItems[targetSlice]); }
   }
   requestAnimationFrame(frame);
 }
-
 function showSpinResult(item) {
   const el = document.getElementById('spin-result');
   if (!el) return;
   el.style.display = 'block';
-  el.innerHTML =
-    '<div class="spin-result-emoji">'+(item.emoji||'🍽️')+'</div>'+
-    '<div class="spin-result-name">'+item.name+'</div>'+
-    '<div class="spin-result-rest">'+item.restaurant+'</div>'+
-    '<div class="spin-result-price">฿'+item.price+'</div>'+
-    '<button class="spin-add-btn" onclick="addSpinToCart(this)" data-id="'+item.id+'">+ เพิ่มเข้าตะกร้า</button>';
+  el.innerHTML = '<div class="spin-result-emoji">'+(item.emoji||'🍽️')+'</div><div class="spin-result-name">'+item.name+'</div><div class="spin-result-rest">'+item.restaurant+'</div><div class="spin-result-price">฿'+item.price+'</div><button class="spin-add-btn" onclick="addSpinToCart(this)" data-id="'+item.id+'">+ เพิ่มเข้าตะกร้า</button>';
 }
-
 function addSpinToCart(btn) {
   const itemId = btn.dataset ? btn.dataset.id : btn;
-  const item = menuMap[itemId];
-  if (!item) return;
-  chg(itemId, 1);
-  showToast('✅ เพิ่ม '+item.name+' แล้ว', 'success');
+  const item = menuMap[itemId]; if (!item) return;
+  chg(itemId, 1); showToast('✅ เพิ่ม '+item.name+' แล้ว', 'success');
   document.getElementById('spin-result').style.display = 'none';
 }
-
 function escId(s) { return s.replace(/[^a-zA-Z0-9ก-๙]/g,'_'); }
-
 function switchMenuTab(tabId, btn) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#menu-tabs .tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active'); btn.classList.add('active');
 }
 
-// ════════════════════════════════
-//  RENDER MENU CARD
-// ════════════════════════════════
 const TAG_LABEL = { rec:'แนะนำ', hot:'ยอดนิยม', new:'ใหม่' };
-
-// Build HTML for one variant button — avoids nested quote hell
 function variantBtnHTML(itemId, vi, label, price, qty) {
   const enc = encodeURIComponent(label);
-  const minusBtn = qty > 0
-    ? '<button class="qty-btn" style="width:22px;height:22px;font-size:14px;" ' +
-        'onclick="chgVariant(\'' + itemId + '\',' + vi + ',-1,\'' + enc + '\',' + price + ')">−</button>' +
-        '<span class="qty-num">' + qty + '</span>'
-    : '';
-  const plusBtn = '<button class="qty-btn add" style="width:22px;height:22px;font-size:14px;" ' +
-    'onclick="chgVariant(\'' + itemId + '\',' + vi + ',1,\'' + enc + '\',' + price + ')">+</button>';
-  return '<div class="variant-btn' + (qty > 0 ? ' selected' : '') + '">' +
-    '<span class="vb-label">' + label + '</span>' +
-    '<span class="vb-price">฿' + price + '</span>' +
-    '<div class="qty-ctrl" style="margin-top:4px;">' + minusBtn + plusBtn + '</div>' +
-    '</div>';
+  const minusBtn = qty > 0 ? '<button class="qty-btn" style="width:22px;height:22px;font-size:14px;" onclick="chgVariant(\''+itemId+'\','+vi+',-1,\''+enc+'\','+price+')">−</button><span class="qty-num">'+qty+'</span>' : '';
+  const plusBtn = '<button class="qty-btn add" style="width:22px;height:22px;font-size:14px;" onclick="chgVariant(\''+itemId+'\','+vi+',1,\''+enc+'\','+price+')">+</button>';
+  return '<div class="variant-btn'+(qty > 0 ? ' selected' : '')+'"><span class="vb-label">'+label+'</span><span class="vb-price">฿'+price+'</span><div class="qty-ctrl" style="margin-top:4px;">'+minusBtn+plusBtn+'</div></div>';
 }
-
 function cardHTML(item) {
-  // Custom blank item — render input fields
   if (item.isCustom) {
     const cid = item.id;
-    return '<div class="food-card" id="card-'+cid+'" style="border:1.5px dashed rgba(245,166,35,0.3);">'+
-      '<div style="padding:12px 14px;">'+
-        '<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;">✏️ รายการพิเศษ / กรอกเอง</div>'+
-        '<input id="cname-'+cid+'" type="text" placeholder="ชื่อรายการ..." '+
-          'style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-family:Kanit,sans-serif;font-size:13px;color:var(--text);margin-bottom:6px;box-sizing:border-box;">'+
-        '<div style="display:flex;gap:8px;align-items:center;">'+
-          '<input id="cprice-'+cid+'" type="number" placeholder="ราคา ฿" min="0" '+
-            'style="width:90px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-family:Kanit,sans-serif;font-size:13px;color:var(--text);">'+
-          '<button onclick="addCustomItem(this)" data-cid="'+cid+'" '+
-            'style="flex:1;background:var(--green);border:none;border-radius:8px;padding:8px;font-family:Kanit,sans-serif;font-size:13px;font-weight:600;color:white;cursor:pointer;">+ เพิ่ม</button>'+
-        '</div>'+
-      '</div>'+
-    '</div>';
+    return '<div class="food-card" id="card-'+cid+'" style="border:1.5px dashed rgba(245,166,35,0.3);"><div style="padding:12px 14px;"><div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;">✏️ รายการพิเศษ / กรอกเอง</div><input id="cname-'+cid+'" type="text" placeholder="ชื่อรายการ..." style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-family:Kanit,sans-serif;font-size:13px;color:var(--text);margin-bottom:6px;box-sizing:border-box;"><div style="display:flex;gap:8px;align-items:center;"><input id="cprice-'+cid+'" type="number" placeholder="ราคา ฿" min="0" style="width:90px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-family:Kanit,sans-serif;font-size:13px;color:var(--text);"><button onclick="addCustomItem(this)" data-cid="'+cid+'" style="flex:1;background:var(--green);border:none;border-radius:8px;padding:8px;font-family:Kanit,sans-serif;font-size:13px;font-weight:600;color:white;cursor:pointer;">+ เพิ่ม</button></div></div></div>';
   }
   const hasVariants = item.variants && item.variants.length > 0;
   const tag = item.tag ? '<span class="tag tag-'+item.tag+'">'+(TAG_LABEL[item.tag]||'')+'</span>' : '';
-
   if (hasVariants) {
     let varBtns = '<div class="variant-btns">';
     item.variants.forEach(function(v, vi) {
@@ -1061,152 +880,69 @@ function cardHTML(item) {
     const anyInCart = item.variants.some(function(_,vi){ return !!localCart[item.id+'__v'+vi]; });
     const firstCart = item.variants.map(function(_,vi){ return localCart[item.id+'__v'+vi]; }).find(function(c){ return c; });
     const note = firstCart ? (firstCart.note||'') : '';
-    return '<div class="menu-card '+(anyInCart?'in-cart':'')+' " id="card-'+item.id+'">' +
-      '<div class="menu-emoji">'+item.emoji+'</div>' +
-      '<div class="menu-info" style="flex:1">' +
-        '<div class="menu-name">'+item.name+tag+'</div>' +
-        (item.desc?'<div class="menu-desc">'+item.desc+'</div>':'') +
-        varBtns +
-        '<div class="note-row '+(anyInCart?'visible':'')+' " id="nr-'+item.id+'">' +
-          '<input class="note-input" type="text" placeholder="หมายเหตุ..." value="'+note+'" ' +
-          'onchange="updateNoteAll(\''+item.id+'\','+item.variants.length+',this.value)">' +
-        '</div>' +
-      '</div>' +
-    '</div>';
+    return '<div class="menu-card '+(anyInCart?'in-cart':'')+'" id="card-'+item.id+'"><div class="menu-emoji">'+item.emoji+'</div><div class="menu-info" style="flex:1"><div class="menu-name">'+item.name+tag+'</div>'+(item.desc?'<div class="menu-desc">'+item.desc+'</div>':'')+varBtns+'<div class="note-row '+(anyInCart?'visible':'')+'" id="nr-'+item.id+'"><input class="note-input" type="text" placeholder="หมายเหตุ..." value="'+note+'" onchange="updateNoteAll(\''+item.id+'\','+item.variants.length+',this.value)"></div></div></div>';
   }
-
-
-  // Single price
   const ci = localCart[item.id];
   const qty = ci ? ci.qty : 0;
   const note = ci ? (ci.note||'') : '';
   const ic = qty > 0;
-  return '<div class="menu-card '+(ic?'in-cart':'')+'" id="card-'+item.id+'">'+
-    '<div class="menu-emoji">'+item.emoji+'</div>'+
-    '<div class="menu-info">'+
-      '<div class="menu-name">'+item.name+tag+'</div>'+
-      (item.desc?'<div class="menu-desc">'+item.desc+'</div>':'')+
-      '<div class="menu-price">฿'+item.price+'</div>'+
-      '<div class="note-row '+(ic?'visible':'')+'" id="nr-'+item.id+'">'+
-        '<input class="note-input" type="text" placeholder="หมายเหตุ เช่น ไม่เผ็ด..." value="'+note+'" onchange="updateNote(\''+item.id+'\',this.value)">'+
-      '</div>'+
-    '</div>'+
-    '<div class="qty-ctrl">'+
-      (qty>0?'<button class="qty-btn" onclick="chg(\''+item.id+'\',-1)">−</button><span class="qty-num">'+qty+'</span>':'')+
-      '<button class="qty-btn add" onclick="chg(\''+item.id+'\',1)">+</button>'+
-    '</div>'+
-  '</div>';
+  return '<div class="menu-card '+(ic?'in-cart':'')+'" id="card-'+item.id+'"><div class="menu-emoji">'+item.emoji+'</div><div class="menu-info"><div class="menu-name">'+item.name+tag+'</div>'+(item.desc?'<div class="menu-desc">'+item.desc+'</div>':'')+' <div class="menu-price">฿'+item.price+'</div><div class="note-row '+(ic?'visible':'')+'" id="nr-'+item.id+'"><input class="note-input" type="text" placeholder="หมายเหตุ เช่น ไม่เผ็ด..." value="'+note+'" onchange="updateNote(\''+item.id+'\',this.value)"></div></div><div class="qty-ctrl">'+(qty>0?'<button class="qty-btn" onclick="chg(\''+item.id+'\',-1)">−</button><span class="qty-num">'+qty+'</span>':'')+'<button class="qty-btn add" onclick="chg(\''+item.id+'\',1)">+</button></div></div>';
 }
-
-function renderAllGrids() {
-  buildMenuFromData(menuData);
-  updateBadge();
-}
-
+function renderAllGrids() { buildMenuFromData(menuData); updateBadge(); }
 function refreshCard(itemId) {
-  const item = menuMap[itemId];
-  if (!item) return;
-  const el = document.getElementById('card-'+itemId);
-  if (!el) return;
-
+  const item = menuMap[itemId]; if (!item) return;
+  const el = document.getElementById('card-'+itemId); if (!el) return;
   if (item.variants && item.variants.length > 0) {
-    // Re-render variant buttons only
     let varHTML = '<div class="variant-btns">';
-    item.variants.forEach(function(v, vi) {
-      const qty = (localCart[itemId+'__v'+vi] || {qty:0}).qty;
-      varHTML += variantBtnHTML(itemId, vi, v.label, v.price, qty);
-    });
+    item.variants.forEach(function(v, vi) { const qty = (localCart[itemId+'__v'+vi] || {qty:0}).qty; varHTML += variantBtnHTML(itemId, vi, v.label, v.price, qty); });
     varHTML += '</div>';
-    const vb = el.querySelector('.variant-btns');
-    if (vb) vb.outerHTML = varHTML;
+    const vb = el.querySelector('.variant-btns'); if (vb) vb.outerHTML = varHTML;
     const anyInCart = item.variants.some(function(_,vi){ return !!localCart[itemId+'__v'+vi]; });
     el.classList.toggle('in-cart', anyInCart);
-    const nr = el.querySelector('.note-row');
-    if (nr) nr.classList.toggle('visible', anyInCart);
+    const nr = el.querySelector('.note-row'); if (nr) nr.classList.toggle('visible', anyInCart);
   } else {
-    // Single-price: patch qty-ctrl only
-    const ci = localCart[itemId];
-    const qty = ci ? ci.qty : 0;
+    const ci = localCart[itemId]; const qty = ci ? ci.qty : 0;
     el.classList.toggle('in-cart', qty > 0);
-    const nr = document.getElementById('nr-'+itemId);
-    if (nr) nr.classList.toggle('visible', qty > 0);
-    const qc = el.querySelector('.qty-ctrl');
-    if (!qc) return;
+    const nr = document.getElementById('nr-'+itemId); if (nr) nr.classList.toggle('visible', qty > 0);
+    const qc = el.querySelector('.qty-ctrl'); if (!qc) return;
     const esc = String(itemId).replace(/'/g,"\\'");
-    qc.innerHTML =
-      (qty > 0
-        ? '<button class="qty-btn" onclick="chg(&#39;'+esc+'&#39;,-1)">−</button>' +
-          '<span class="qty-num">'+qty+'</span>'
-        : '') +
-      '<button class="qty-btn add" onclick="chg(&#39;'+esc+'&#39;,1)">+</button>';
+    qc.innerHTML = (qty > 0 ? '<button class="qty-btn" onclick="chg(&#39;'+esc+'&#39;,-1)">−</button><span class="qty-num">'+qty+'</span>' : '') + '<button class="qty-btn add" onclick="chg(&#39;'+esc+'&#39;,1)">+</button>';
   }
 }
 
-// ════════════════════════════════
-//  CART
-// ════════════════════════════════
 function addCustomItem(btn) {
   const cid = btn.dataset ? btn.dataset.cid : btn;
-  const nameEl  = document.getElementById('cname-'+cid);
-  const priceEl = document.getElementById('cprice-'+cid);
+  const nameEl = document.getElementById('cname-'+cid); const priceEl = document.getElementById('cprice-'+cid);
   if (!nameEl || !priceEl) return;
-  const name  = nameEl.value.trim();
-  const price = Number(priceEl.value)||0;
+  const name = nameEl.value.trim(); const price = Number(priceEl.value)||0;
   if (!name) { nameEl.focus(); showToast('⚠️ กรุณากรอกชื่อรายการ','error'); return; }
   if (!price) { priceEl.focus(); showToast('⚠️ กรุณากรอกราคา','error'); return; }
-
-  // Get restaurant from custom item
-  const meta = menuMap[cid];
-  if (!meta) return;
-
-  // Create unique id for this custom entry
+  const meta = menuMap[cid]; if (!meta) return;
   const uid = 'cx_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
-  localCart[uid] = {
-    qty: 1, price, name,
-    emoji: '✏️',
-    restaurant: meta.restaurant,
-    note: ''
-  };
-  // Clear inputs
+  localCart[uid] = { qty:1, price, name, emoji:'✏️', restaurant:meta.restaurant, note:'' };
   nameEl.value = ''; priceEl.value = '';
-  updateMyStats(); updateBadge();
-  showToast('✅ เพิ่ม '+name+' ฿'+price+' แล้ว','success');
+  updateMyStats(); updateBadge(); showToast('✅ เพิ่ม '+name+' ฿'+price+' แล้ว','success');
 }
-
 function chg(itemId, delta) {
-  const meta = menuMap[itemId];
-  if (!meta) return;
+  const meta = menuMap[itemId]; if (!meta) return;
   const cur = localCart[itemId] ? localCart[itemId].qty : 0;
-  const nq  = Math.max(0, cur + delta);
+  const nq = Math.max(0, cur + delta);
   if (nq === 0) { delete localCart[itemId]; }
   else { localCart[itemId] = { qty:nq, price:Number(meta.price), name:meta.name, emoji:meta.emoji, restaurant:meta.restaurant, note:localCart[itemId]?localCart[itemId].note:'' }; }
-  refreshCard(itemId);
-  updateMyStats();
-  updateBadge();
+  refreshCard(itemId); updateMyStats(); updateBadge();
 }
-
 function chgVariant(itemId, vi, delta, labelEnc, price) {
-  const meta = menuMap[itemId];
-  if (!meta) return;
+  const meta = menuMap[itemId]; if (!meta) return;
   const label = decodeURIComponent(labelEnc);
   const cartKey = itemId + '__v' + vi;
   const cur = localCart[cartKey] ? localCart[cartKey].qty : 0;
-  const nq  = Math.max(0, cur + delta);
+  const nq = Math.max(0, cur + delta);
   if (nq === 0) { delete localCart[cartKey]; }
   else { localCart[cartKey] = { qty:nq, price:Number(price), name:meta.name+' ('+label+')', emoji:meta.emoji, restaurant:meta.restaurant, note:localCart[cartKey]?localCart[cartKey].note:'' }; }
-  refreshCard(itemId);
-  updateMyStats();
-  updateBadge();
+  refreshCard(itemId); updateMyStats(); updateBadge();
 }
-
 function updateNote(itemId, val) { if (localCart[itemId]) localCart[itemId].note = val; }
-function updateNoteAll(itemId, count, val) {
-  for (let vi = 0; vi < count; vi++) {
-    const ck = itemId + '__v' + vi;
-    if (localCart[ck]) localCart[ck].note = val;
-  }
-}
-
+function updateNoteAll(itemId, count, val) { for (let vi = 0; vi < count; vi++) { const ck = itemId+'__v'+vi; if (localCart[ck]) localCart[ck].note = val; } }
 function updateMyStats() {
   let count=0, total=0;
   for (const it of Object.values(localCart)) { count+=it.qty; total+=it.qty*it.price; }
@@ -1214,36 +950,14 @@ function updateMyStats() {
   document.getElementById('my-total').textContent = '฿'+total;
   document.getElementById('confirm-btn').disabled = (count===0);
 }
-function updateBadge() {
-  let t=0; for (const it of Object.values(localCart)) t+=it.qty;
-  document.getElementById('cart-badge').textContent = t;
-}
-function updateOrdersBadge(rows) {
-  // แสดงจำนวน rows ทั้งหมดใน Sheets บน badge ปุ่มรายการทั้งหมด
-  const total = (rows||[]).reduce((s,r)=>s+(Number(r.qty)||0), 0);
-  const el = document.getElementById('cart-badge');
-  if (el) el.textContent = total;
-}
+function updateBadge() { let t=0; for (const it of Object.values(localCart)) t+=it.qty; document.getElementById('cart-badge').textContent = t; }
+function updateOrdersBadge(rows) { const total = (rows||[]).reduce((s,r)=>s+(Number(r.qty)||0), 0); const el = document.getElementById('cart-badge'); if (el) el.textContent = total; }
 
-// ════════════════════════════════
-//  CONFIRM MODAL
-// ════════════════════════════════
 function openConfirmModal() {
-  const items = Object.values(localCart).filter(i=>i.qty>0);
-  if (!items.length) return;
+  const items = Object.values(localCart).filter(i=>i.qty>0); if (!items.length) return;
   let rows='', total=0;
-  for (const it of items) {
-    const line=it.qty*it.price; total+=line;
-    rows+='<div class="modal-item-row">'+
-      '<div class="mi-emoji">'+it.emoji+'</div>'+
-      '<div class="mi-info"><div class="mi-name">'+it.name+'</div>'+
-      '<div class="mi-sub">📍 '+it.restaurant+(it.note?' · 📝 '+it.note:'')+'</div></div>'+
-      '<div class="mi-right"><div class="mi-qty">× '+it.qty+'</div><div class="mi-price">฿'+line+'</div></div>'+
-      '</div>';
-  }
-  document.getElementById('modal-body').innerHTML =
-    '<p style="font-size:12px;color:var(--text2);margin-bottom:11px;">ผู้สั่ง: <strong style="color:var(--accent)">👤 '+currentUser+'</strong></p>'+
-    rows+'<div class="modal-total"><span>ยอดรวมของคุณ</span><strong>฿'+total+'</strong></div>';
+  for (const it of items) { const line=it.qty*it.price; total+=line; rows+='<div class="modal-item-row"><div class="mi-emoji">'+it.emoji+'</div><div class="mi-info"><div class="mi-name">'+it.name+'</div><div class="mi-sub">📍 '+it.restaurant+(it.note?' · 📝 '+it.note:'')+'</div></div><div class="mi-right"><div class="mi-qty">× '+it.qty+'</div><div class="mi-price">฿'+line+'</div></div></div>'; }
+  document.getElementById('modal-body').innerHTML = '<p style="font-size:12px;color:var(--text2);margin-bottom:11px;">ผู้สั่ง: <strong style="color:var(--accent)">👤 '+currentUser+'</strong></p>'+rows+'<div class="modal-total"><span>ยอดรวมของคุณ</span><strong>฿'+total+'</strong></div>';
   document.getElementById('modal-submit-btn').disabled = false;
   document.getElementById('modal-submit-btn').innerHTML = '📤 ส่งรายการ';
   document.getElementById('modal-overlay').classList.add('show');
@@ -1251,99 +965,45 @@ function openConfirmModal() {
 function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
 function closeModalIfOutside(e) { if (e.target.id==='modal-overlay') closeModal(); }
 
-// ════════════════════════════════
-//  SUBMIT ORDER
-// ════════════════════════════════
 async function submitOrder() {
-  const items = Object.values(localCart).filter(i=>i.qty>0);
-  if (!items.length) return;
+  const items = Object.values(localCart).filter(i=>i.qty>0); if (!items.length) return;
   const btn = document.getElementById('modal-submit-btn');
   btn.disabled=true; btn.innerHTML='⏳ กำลังส่ง...';
   const payload = { person:currentUser, items:items.map(i=>({name:i.name,emoji:i.emoji,qty:i.qty,price:i.price,note:i.note||'',restaurant:i.restaurant||''})) };
   try {
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
-    localCart={};
-    renderAllGrids(); updateMyStats(); updateBadge(); closeModal();
+    localCart={}; renderAllGrids(); updateMyStats(); updateBadge(); closeModal();
     showToast('✅ ส่งรายการเรียบร้อย!','success');
-  } catch(err) {
-    btn.disabled=false; btn.innerHTML='📤 ลองใหม่';
-    showToast('❌ ส่งไม่สำเร็จ','error');
-  }
+  } catch(err) { btn.disabled=false; btn.innerHTML='📤 ลองใหม่'; showToast('❌ ส่งไม่สำเร็จ','error'); }
 }
 
-// ════════════════════════════════
-//  ALL ORDERS
-// ════════════════════════════════
 async function refreshAllOrders() {
   const el = document.getElementById('allorders-content');
   el.innerHTML = '<div class="loading-state"><div class="spinner"></div><br>กำลังโหลด...</div>';
-  try {
-    const json = await jsonpFetch(SCRIPT_URL+'?action=get');
-    renderAllOrdersTable(json.rows||[], el);
-  } catch(e) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><p>โหลดไม่สำเร็จ: '+e.message+'</p></div>';
-  }
+  try { const json = await jsonpFetch(SCRIPT_URL+'?action=get'); renderAllOrdersTable(json.rows||[], el); }
+  catch(e) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><p>โหลดไม่สำเร็จ: '+e.message+'</p></div>'; }
 }
 function renderAllOrdersTable(rows, container) {
-  if (!rows.length) {
-    container.innerHTML='<div class="empty-state"><div class="empty-icon">🍽️</div><p>ยังไม่มีการสั่งอาหาร</p></div>';
-    // ถ้าไม่มี orders แล้ว ล้าง QR cards ด้วย
-    localStorage.removeItem('admin_qr_state');
-    localStorage.removeItem('admin_paid');
-    const wrap = document.getElementById('qr-cards-wrap');
-    if (wrap) wrap.innerHTML = '';
-    return;
-  }
+  if (!rows.length) { container.innerHTML='<div class="empty-state"><div class="empty-icon">🍽️</div><p>ยังไม่มีการสั่งอาหาร</p></div>'; localStorage.removeItem('admin_qr_state'); localStorage.removeItem('admin_paid'); const wrap = document.getElementById('qr-cards-wrap'); if (wrap) wrap.innerHTML = ''; return; }
   const grouped={};
   for (const r of rows) { if (!grouped[r.person]) grouped[r.person]=[]; grouped[r.person].push(r); }
   let gt=0, gq=0;
-  const trs = rows.map(r => {
-    const line=Number(r.total)||(Number(r.qty)*Number(r.price)); gt+=line; gq+=Number(r.qty);
-    return '<tr>'+
-      '<td><div class="td-food"><div class="td-food-emoji">'+(r.emoji||'🍽️')+'</div><div>'+
-      '<div class="td-food-name">'+r.name+'</div>'+(r.note?'<div class="td-food-note">📝 '+r.note+'</div>':'')+
-      '</div></div></td>'+
-      '<td class="center"><span class="td-qty">'+r.qty+'</span></td>'+
-      '<td class="center"><span class="td-price">'+line+'</span></td>'+
-      '<td class="center"><span class="td-person">👤 '+r.person+'</span></td>'+
-      '<td class="center"><span class="td-restaurant">'+(r.restaurant||'')+'</span></td>'+
-      '<td class="center"><span class="td-time">'+r.timestamp+'</span></td>'+
-      '</tr>';
-  }).join('');
-  const personSums = Object.entries(grouped).map(([person,items]) => {
-    const sub=items.reduce((s,r)=>s+(Number(r.total)||(Number(r.qty)*Number(r.price))),0);
-    return '<div class="person-sum-pill"><span class="td-person">👤 '+person+'</span><span class="person-sum-price">฿'+sub+'</span></div>';
-  }).join('');
+  const trs = rows.map(r => { const line=Number(r.total)||(Number(r.qty)*Number(r.price)); gt+=line; gq+=Number(r.qty); return '<tr><td><div class="td-food"><div class="td-food-emoji">'+(r.emoji||'🍽️')+'</div><div><div class="td-food-name">'+r.name+'</div>'+(r.note?'<div class="td-food-note">📝 '+r.note+'</div>':'')+'</div></div></td><td class="center"><span class="td-qty">'+r.qty+'</span></td><td class="center"><span class="td-price">'+line+'</span></td><td class="center"><span class="td-person">👤 '+r.person+'</span></td><td class="center"><span class="td-restaurant">'+(r.restaurant||'')+'</span></td><td class="center"><span class="td-time">'+r.timestamp+'</span></td></tr>'; }).join('');
+  const personSums = Object.entries(grouped).map(([person,items]) => { const sub=items.reduce((s,r)=>s+(Number(r.total)||(Number(r.qty)*Number(r.price))),0); return '<div class="person-sum-pill"><span class="td-person">👤 '+person+'</span><span class="person-sum-price">฿'+sub+'</span></div>'; }).join('');
   updateOrdersBadge(rows);
-  container.innerHTML =
-    '<div class="order-table-wrap"><table class="order-table"><thead><tr>'+
-    '<th>รายการอาหาร</th><th class="center">จำนวน</th><th class="center">ราคา</th><th class="center">ผู้สั่ง</th><th class="center">ร้าน</th><th class="center">เวลา</th>'+
-    '</tr></thead><tbody>'+trs+'</tbody></table>'+
-    '<div class="table-footer">'+
-    '<div style="display:flex;gap:14px;flex-wrap:wrap;"><span class="stat-pill">👥 <strong>'+Object.keys(grouped).length+'</strong> คน</span><span class="stat-pill">🍽️ <strong>'+gq+'</strong> รายการ</span></div>'+
-    '<div class="table-footer-total">฿'+gt+'</div></div></div>'+
-    '<div class="person-sums-wrap">'+personSums+'</div>'+
-    (_isAdmin ? '<button class="clear-btn" onclick="clearAllSheetOrders()">🗑️ ล้างรายการทั้งหมด (เริ่มรอบใหม่)</button>' : '');
+  container.innerHTML = '<div class="order-table-wrap"><table class="order-table"><thead><tr><th>รายการอาหาร</th><th class="center">จำนวน</th><th class="center">ราคา</th><th class="center">ผู้สั่ง</th><th class="center">ร้าน</th><th class="center">เวลา</th></tr></thead><tbody>'+trs+'</tbody></table><div class="table-footer"><div style="display:flex;gap:14px;flex-wrap:wrap;"><span class="stat-pill">👥 <strong>'+Object.keys(grouped).length+'</strong> คน</span><span class="stat-pill">🍽️ <strong>'+gq+'</strong> รายการ</span></div><div class="table-footer-total">฿'+gt+'</div></div></div><div class="person-sums-wrap">'+personSums+'</div>'+(_isAdmin ? '<button class="clear-btn" onclick="clearAllSheetOrders()">🗑️ ล้างรายการทั้งหมด (เริ่มรอบใหม่)</button>' : '');
 }
 async function clearAllSheetOrders() {
   const ok = await showConfirmModal('🗑️ ล้างรายการทั้งหมด ใช่ไหม?', '(ไม่สามารถกู้คืนได้)');
   if (!ok) return;
   try {
-    // clearNotifs ก่อน เพื่อให้ user poll เจอค่าว่างแล้วปิด popup
     await jsonpFetch(SCRIPT_URL+'?action=clearNotifs').catch(()=>{});
     await jsonpFetch(SCRIPT_URL+'?action=clear');
-    localStorage.removeItem('admin_paid');
-    localStorage.removeItem('admin_qr_state');
-    localStorage.removeItem('qr_seen_ts_' + currentUser);
-    showToast('🗑️ ล้างรายการแล้ว','success');
-    refreshAllOrders();
-  }
-  catch(e) { showToast('❌ ล้างไม่สำเร็จ','error'); }
+    localStorage.removeItem('admin_paid'); localStorage.removeItem('admin_qr_state'); localStorage.removeItem('qr_seen_ts_' + currentUser);
+    showToast('🗑️ ล้างรายการแล้ว','success'); refreshAllOrders();
+  } catch(e) { showToast('❌ ล้างไม่สำเร็จ','error'); }
 }
 
-// ════════════════════════════════
-//  ADMIN PRICE TAB
-// ════════════════════════════════
 async function loadAdminPriceTab() {
   const el = document.getElementById('admin-orders-content');
   document.getElementById('admin-qr-section').style.display='none';
@@ -1352,182 +1012,80 @@ async function loadAdminPriceTab() {
   const savedPhone=localStorage.getItem('food_order_phone');
   if (savedPhone) document.getElementById('admin-phone').value=savedPhone;
   fetchPhoneFromSheet();
-  try {
-    const json=await jsonpFetch(SCRIPT_URL+'?action=get');
-    adminRows=json.rows||[];
-    renderAdminTable(adminRows,el);
-    restoreQrSection();
-  } catch(e) { el.innerHTML='<div class="empty-state"><div class="empty-icon">❌</div><p>โหลดไม่สำเร็จ</p></div>'; }
+  try { const json=await jsonpFetch(SCRIPT_URL+'?action=get'); adminRows=json.rows||[]; renderAdminTable(adminRows,el); restoreQrSection(); }
+  catch(e) { el.innerHTML='<div class="empty-state"><div class="empty-icon">❌</div><p>โหลดไม่สำเร็จ</p></div>'; }
 }
 
 function restoreQrSection() {
-  let qrState = {};
-  try { qrState = JSON.parse(localStorage.getItem('admin_qr_state') || '{}'); } catch(e) {}
+  let qrState = {}; try { qrState = JSON.parse(localStorage.getItem('admin_qr_state') || '{}'); } catch(e) {}
   if (!Object.keys(qrState).length) return;
-
-  let paidMap = {};
-  try { paidMap = JSON.parse(localStorage.getItem('admin_paid') || '{}'); } catch(e) {}
-
-  const wrap = document.getElementById('qr-cards-wrap');
-  wrap.innerHTML = '';
-
+  let paidMap = {}; try { paidMap = JSON.parse(localStorage.getItem('admin_paid') || '{}'); } catch(e) {}
+  const wrap = document.getElementById('qr-cards-wrap'); wrap.innerHTML = '';
   Object.entries(qrState).forEach(([person, data]) => {
     try {
       const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
       const isPaid = !!paidMap[person];
-      const itemRows = (data.items||[]).map(it =>
-        '<div class="qr-item-row">'+
-          '<span class="qr-item-name">'+(it.emoji||'🍽️')+' '+(it.name||'')+' ×'+(it.qty||0)+'</span>'+
-          '<span>฿'+(it.actual||0)+'</span>'+
-        '</div>'
-      ).join('');
+      const itemRows = (data.items||[]).map(it => '<div class="qr-item-row"><span class="qr-item-name">'+(it.emoji||'🍽️')+' '+(it.name||'')+' ×'+(it.qty||0)+'</span><span>฿'+(it.actual||0)+'</span></div>').join('');
       const card = document.createElement('div');
       card.className = 'qr-card' + (isPaid ? ' paid' : '');
       card.setAttribute('data-person', person);
-      card.innerHTML =
-        '<div class="qr-card-header">'+
-          '<div class="qr-card-name">👤 '+person+'</div>'+
-          '<div class="qr-card-amount">฿'+(data.amount||0)+'</div>'+
-          '<div id="paid-badge-'+personId+'">'+(isPaid ? '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>' : '')+'</div>'+
-        '</div>'+
-        '<div class="qr-img-wrap">'+
-          '<a href="'+(data.qrUrl||'')+'" target="_blank">'+
-            '<img src="'+(data.qrUrl||'')+'" alt="QR" style="width:180px;height:180px;">'+
-          '</a>'+
-        '</div>'+
-        '<div class="qr-items-list">'+itemRows+'</div>'+
-        '<div style="display:flex;gap:8px;margin:0 14px 14px;">'+
-          '<button class="qr-save-btn" style="flex:1" onclick="downloadQR(this.dataset.url,this.dataset.fn)" data-url="'+(data.qrUrl||'')+'" data-fn="QR_'+person+'_'+(data.amount||0)+'THB.png">💾 บันทึก QR</button>'+
-          '<button id="slip-btn-'+personId+'" class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(this.dataset.url)" data-url="'+(data.qrUrl||'').replace('.png','')+'">🔗 เปิด QR</button>'+
-        '</div>';
+      card.innerHTML = '<div class="qr-card-header"><div class="qr-card-name">👤 '+person+'</div><div class="qr-card-amount">฿'+(data.amount||0)+'</div><div id="paid-badge-'+personId+'">'+(isPaid ? '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>' : '')+'</div></div><div class="qr-img-wrap"><a href="'+(data.qrUrl||'')+'" target="_blank"><img src="'+(data.qrUrl||'')+'" alt="QR" style="width:180px;height:180px;"></a></div><div class="qr-items-list">'+itemRows+'</div><div style="display:flex;gap:8px;margin:0 14px 14px;"><button class="qr-save-btn" style="flex:1" onclick="downloadQR(this.dataset.url,this.dataset.fn)" data-url="'+(data.qrUrl||'')+'" data-fn="QR_'+person+'_'+(data.amount||0)+'THB.png">💾 บันทึก QR</button><button id="slip-btn-'+personId+'" class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(this.dataset.url)" data-url="'+(data.qrUrl||'')+'">🔗 เปิด QR</button></div>';
       wrap.appendChild(card);
-      // โหลดสลิปถ้ามี (โหลดทั้ง paid และ unpaid)
       loadSlipForAdmin(person, personId);
-    } catch(err) { console.error('restoreQrSection card error:', person, err); }
+    } catch(err) {}
   });
-
-  // Always show section if we have state, even if some cards failed
   document.getElementById('admin-qr-section').style.display = 'block';
-
-  // Start slip polling
   startSlipPolling();
-
-  // Resume polling for unpaid
   const unpaid = Object.keys(qrState).filter(p => !paidMap[p]);
   if (unpaid.length) startAdminAckPolling(unpaid, '0');
 }
+
 function renderAdminTable(rows,container) {
   if (!rows.length) { container.innerHTML='<div class="empty-state"><div class="empty-icon">🍽️</div><p>ยังไม่มีการสั่งอาหาร</p></div>'; document.getElementById('admin-confirm-bar').style.display='none'; return; }
-  const trs=rows.map((r,idx)=>{
-    const orig=Number(r.total)||(Number(r.qty)*Number(r.price));
-    return '<tr>'+
-      '<td><div class="td-food"><div class="td-food-emoji">'+(r.emoji||'🍽️')+'</div><div>'+
-      '<div class="td-food-name">'+r.name+'</div>'+(r.note?'<div class="td-food-note">📝 '+r.note+'</div>':'')+
-      '</div></div></td>'+
-      '<td class="center"><span class="td-qty">'+r.qty+'</span></td>'+
-      '<td class="center"><span class="td-person">👤 '+r.person+'</span></td>'+
-      '<td class="center"><span class="td-restaurant">'+(r.restaurant||'')+'</span></td>'+
-      '<td class="center">'+
-        '<div class="admin-price-orig">฿'+orig+'</div>'+
-        '<input class="admin-price-input" type="number" id="aprice-'+idx+'" value="'+orig+'" min="0" oninput="onAdminPriceChange('+idx+',this)">'+
-      '</td></tr>';
-  }).join('');
-  container.innerHTML='<div class="admin-table-wrap"><table class="admin-table"><thead><tr>'+
-    '<th>รายการอาหาร</th><th class="center">จำนวน</th><th class="center">ผู้สั่ง</th><th class="center">ร้าน</th><th class="center">ราคาจริง (฿)</th>'+
-    '</tr></thead><tbody>'+trs+'</tbody></table></div>';
+  const trs=rows.map((r,idx)=>{ const orig=Number(r.total)||(Number(r.qty)*Number(r.price)); return '<tr><td><div class="td-food"><div class="td-food-emoji">'+(r.emoji||'🍽️')+'</div><div><div class="td-food-name">'+r.name+'</div>'+(r.note?'<div class="td-food-note">📝 '+r.note+'</div>':'')+'</div></div></td><td class="center"><span class="td-qty">'+r.qty+'</span></td><td class="center"><span class="td-person">👤 '+r.person+'</span></td><td class="center"><span class="td-restaurant">'+(r.restaurant||'')+'</span></td><td class="center"><div class="admin-price-orig">฿'+orig+'</div><input class="admin-price-input" type="number" id="aprice-'+idx+'" value="'+orig+'" min="0" oninput="onAdminPriceChange('+idx+',this)"></td></tr>'; }).join('');
+  container.innerHTML='<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>รายการอาหาร</th><th class="center">จำนวน</th><th class="center">ผู้สั่ง</th><th class="center">ร้าน</th><th class="center">ราคาจริง (฿)</th></tr></thead><tbody>'+trs+'</tbody></table></div>';
   document.getElementById('admin-confirm-bar').style.display='flex';
   updateAdminGrandTotal();
 }
-function onAdminPriceChange(idx,input) {
-  const orig=Number(adminRows[idx].total)||(Number(adminRows[idx].qty)*Number(adminRows[idx].price));
-  input.classList.toggle('changed',Number(input.value)!==orig);
-  updateAdminGrandTotal();
-}
-function updateAdminGrandTotal() {
-  let total=0;
-  adminRows.forEach((_,idx)=>{ const inp=document.getElementById('aprice-'+idx); total+=inp?(Number(inp.value)||0):0; });
-  const el=document.getElementById('admin-grand-total');
-  if (el) el.textContent='฿'+total;
-}
+function onAdminPriceChange(idx,input) { const orig=Number(adminRows[idx].total)||(Number(adminRows[idx].qty)*Number(adminRows[idx].price)); input.classList.toggle('changed',Number(input.value)!==orig); updateAdminGrandTotal(); }
+function updateAdminGrandTotal() { let total=0; adminRows.forEach((_,idx)=>{ const inp=document.getElementById('aprice-'+idx); total+=inp?(Number(inp.value)||0):0; }); const el=document.getElementById('admin-grand-total'); if (el) el.textContent='฿'+total; }
+
 function confirmAdminPrices() {
   const phone=document.getElementById('admin-phone').value.trim().replace(/\D/g,'');
   if (!phone||phone.length<9) { showToast('⚠️ กรุณากรอกเบอร์ PromptPay ก่อน','error'); return; }
   savePhone(phone);
   const personData={};
-  adminRows.forEach((r,idx)=>{
-    const inp=document.getElementById('aprice-'+idx);
-    const actual=inp?(Number(inp.value)||0):0;
-    const orig=Number(r.total)||(Number(r.qty)*Number(r.price));
-    if (!personData[r.person]) personData[r.person]={total:0,items:[]};
-    personData[r.person].total+=actual;
-    personData[r.person].items.push({emoji:r.emoji||'🍽️',name:r.name,qty:r.qty,orig,actual});
-  });
-  const wrap=document.getElementById('qr-cards-wrap');
-  wrap.innerHTML='';
-
-  // Load paid set from localStorage (persists across refresh)
-  // Key: 'admin_paid' = JSON {person: notifTs} meaning this person paid at this ts
-  let paidMap = {};
-  try { paidMap = JSON.parse(localStorage.getItem('admin_paid') || '{}'); } catch(e) {}
-
+  adminRows.forEach((r,idx)=>{ const inp=document.getElementById('aprice-'+idx); const actual=inp?(Number(inp.value)||0):0; const orig=Number(r.total)||(Number(r.qty)*Number(r.price)); if (!personData[r.person]) personData[r.person]={total:0,items:[]}; personData[r.person].total+=actual; personData[r.person].items.push({emoji:r.emoji||'🍽️',name:r.name,qty:r.qty,orig,actual}); });
+  const wrap=document.getElementById('qr-cards-wrap'); wrap.innerHTML='';
+  let paidMap = {}; try { paidMap = JSON.parse(localStorage.getItem('admin_paid') || '{}'); } catch(e) {}
   Object.entries(personData).forEach(([person,data])=>{
-    const amount=data.total;
-    const qrUrl='https://promptpay.io/'+phone+'/'+amount;
+    const amount=data.total; const qrUrl='https://promptpay.io/'+phone+'/'+amount;
     const personId=person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
-    const itemRows=data.items.map(it=>
-      '<div class="qr-item-row"><span class="qr-item-name">'+it.emoji+' '+it.name+' ×'+it.qty+'</span>'+
-      '<span>'+(it.actual!==it.orig?'<s style="color:var(--text3);font-size:10px;">฿'+it.orig+'</s> ':'')+' ฿'+it.actual+'</span></div>'
-    ).join('');
+    const itemRows=data.items.map(it=>'<div class="qr-item-row"><span class="qr-item-name">'+it.emoji+' '+it.name+' ×'+it.qty+'</span><span>'+(it.actual!==it.orig?'<s style="color:var(--text3);font-size:10px;">฿'+it.orig+'</s> ':'')+' ฿'+it.actual+'</span></div>').join('');
     const card=document.createElement('div');
     card.className='qr-card' + (paidMap[person] ? ' paid' : '');
     card.setAttribute('data-person', person);
-    card.innerHTML=
-      '<div class="qr-card-header">'+
-        '<div class="qr-card-name">👤 '+person+'</div>'+
-        '<div class="qr-card-amount">฿'+amount+'</div>'+
-        '<div id="paid-badge-'+personId+'">'+(paidMap[person]?'<span class="qr-paid-badge">✅ จ่ายแล้ว</span>':'')+'</div>'+
-      '</div>'+
-      '<div class="qr-img-wrap"><a href="'+qrUrl+'.png" target="_blank"><img src="'+qrUrl+'.png" alt="QR" style="width:180px;height:180px;"></a></div>'+
-      '<div class="qr-items-list">'+itemRows+'</div>'+
-      '<div style="display:flex;gap:8px;margin:0 14px 14px;">'+
-        '<button class="qr-save-btn" style="flex:1" onclick="downloadQR(\''+qrUrl+'.png\',\'QR_'+person+'_'+amount+'THB.png\')">💾 บันทึก QR</button>'+
-        '<button id="slip-btn-'+personId+'" class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(\''+qrUrl+'\',\'_blank\')" data-url="'+qrUrl+'">🔗 เปิด QR</button>'+
-      '</div>';
+    card.innerHTML='<div class="qr-card-header"><div class="qr-card-name">👤 '+person+'</div><div class="qr-card-amount">฿'+amount+'</div><div id="paid-badge-'+personId+'">'+(paidMap[person]?'<span class="qr-paid-badge">✅ จ่ายแล้ว</span>':'')+'</div></div><div class="qr-img-wrap"><a href="'+qrUrl+'.png" target="_blank"><img src="'+qrUrl+'.png" alt="QR" style="width:180px;height:180px;"></a></div><div class="qr-items-list">'+itemRows+'</div><div style="display:flex;gap:8px;margin:0 14px 14px;"><button class="qr-save-btn" style="flex:1" onclick="downloadQR(\''+qrUrl+'.png\',\'QR_'+person+'_'+amount+'THB.png\')">💾 บันทึก QR</button><button id="slip-btn-'+personId+'" class="qr-save-btn" style="flex:1;background:rgba(124,174,255,0.15);color:var(--blue);border:1px solid rgba(124,174,255,0.3);" onclick="window.open(\''+qrUrl+'\',\'_blank\')" data-url="'+qrUrl+'">🔗 เปิด QR</button></div>';
     wrap.appendChild(card);
     loadSlipForAdmin(person, personId);
   });
   document.getElementById('admin-qr-section').style.display='block';
   document.getElementById('admin-qr-section').scrollIntoView({behavior:'smooth'});
-
-  // บันทึก QR state ลง localStorage ไว้ restore หลัง refresh
   const qrState = {};
-  Object.entries(personData).forEach(([person, data]) => {
-    qrState[person] = {
-      amount: data.total,
-      qrUrl: 'https://promptpay.io/' + phone + '/' + data.total + '.png',
-      items: data.items
-    };
-  });
+  Object.entries(personData).forEach(([person, data]) => { qrState[person] = { amount: data.total, qrUrl: 'https://promptpay.io/' + phone + '/' + data.total + '.png', items: data.items }; });
   localStorage.setItem('admin_qr_state', JSON.stringify(qrState));
-
-  // ส่ง notification เฉพาะคนที่ยังไม่จ่าย
-  // ts ใหม่ทุกครั้ง + random เพื่อไม่ให้ซ้ำ seenTs เดิมบน user device
   const ts = String(Date.now()) + Math.floor(Math.random()*1000);
-  // clear seenTs ของทุก person บน device นี้
-  Object.keys(personData).forEach(person => {
-    localStorage.removeItem('qr_seen_ts_' + person);
-  });
+  Object.keys(personData).forEach(person => { localStorage.removeItem('qr_seen_ts_' + person); });
   const notifiedPersons = Object.keys(personData);
   Object.entries(personData).forEach(([person, data]) => {
-    if (paidMap[person]) return;  // จ่ายแล้ว → ข้าม
-    const qrUrl    = 'https://promptpay.io/' + phone + '/' + data.total + '.png';
+    if (paidMap[person]) return;
+    const qrUrl = 'https://promptpay.io/' + phone + '/' + data.total + '.png';
     const notifKey = encodeURIComponent('qr_' + person);
-    const ackKey   = encodeURIComponent('qr_ack_' + person);
+    const ackKey = encodeURIComponent('qr_ack_' + person);
     const notifVal = JSON.stringify({ person, amount: data.total, qrUrl, ts, items: data.items });
     jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + notifKey + '&value=' + encodeURIComponent(notifVal) + '&ts=' + ts).catch(()=>{});
-    jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + ackKey   + '&value=pending&ts=' + ts).catch(()=>{});
+    jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + ackKey + '&value=pending&ts=' + ts).catch(()=>{});
   });
-
   startAdminAckPolling(notifiedPersons, ts);
   showToast('✅ สร้าง QR และแจ้งเตือนแล้ว!', 'success');
 }
@@ -1536,820 +1094,219 @@ let _adminAckTimer = null;
 function markCardPaid(person) {
   const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
   const card = document.querySelector('.qr-card[data-person="' + person + '"]');
-  if (card && !card.classList.contains('paid')) {
-    card.classList.add('paid');
-    const badge = document.getElementById('paid-badge-' + personId);
-    if (badge) badge.innerHTML = '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>';
-  }
-  // Persist to localStorage
-  let paidMap = {};
-  try { paidMap = JSON.parse(localStorage.getItem('admin_paid') || '{}'); } catch(e) {}
-  paidMap[person] = String(Date.now());
-  localStorage.setItem('admin_paid', JSON.stringify(paidMap));
+  if (card && !card.classList.contains('paid')) { card.classList.add('paid'); const badge = document.getElementById('paid-badge-' + personId); if (badge) badge.innerHTML = '<span class="qr-paid-badge">✅ จ่ายแล้ว</span>'; }
+  let paidMap = {}; try { paidMap = JSON.parse(localStorage.getItem('admin_paid') || '{}'); } catch(e) {}
+  paidMap[person] = String(Date.now()); localStorage.setItem('admin_paid', JSON.stringify(paidMap));
 }
-
 function startAdminAckPolling(persons, batchTs) {
   if (_adminAckTimer) clearInterval(_adminAckTimer);
   _adminAckTimer = setInterval(async () => {
     let allPaid = true;
     for (const person of persons) {
       const ackKey = encodeURIComponent('qr_ack_' + person);
-      try {
-        const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey);
-        if (res && res.value === 'paid' && res.ts >= batchTs) {
-          markCardPaid(person);
-        } else {
-          allPaid = false;
-        }
-      } catch(e) { allPaid = false; }
+      try { const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + ackKey); if (res && res.value === 'paid' && res.ts >= batchTs) { markCardPaid(person); } else { allPaid = false; } } catch(e) { allPaid = false; }
     }
     if (allPaid) { clearInterval(_adminAckTimer); _adminAckTimer = null; }
   }, 5000);
 }
-function savePhoneNow() {
-  const phone = document.getElementById('admin-phone').value.trim().replace(/\D/g,'');
-  if (phone && phone.length >= 9) {
-    savePhone(phone);
-    showToast('✅ บันทึกเบอร์ PromptPay แล้ว', 'success');
-  }
-}
-function savePhone(phone) {
-  localStorage.setItem('food_order_phone',phone);
-  jsonpFetch(SCRIPT_URL+'?action=savePhone&phone='+encodeURIComponent(phone)).catch(()=>{});
-}
-async function fetchPhoneFromSheet() {
-  try {
-    const json=await jsonpFetch(SCRIPT_URL+'?action=getPhone');
-    if (json.phone) {
-      localStorage.setItem('food_order_phone',json.phone);
-      const el=document.getElementById('admin-phone');
-      if (el&&!el.value) el.value=json.phone;
-    }
-  } catch(e) {}
-}
+function savePhoneNow() { const phone = document.getElementById('admin-phone').value.trim().replace(/\D/g,''); if (phone && phone.length >= 9) { savePhone(phone); showToast('✅ บันทึกเบอร์ PromptPay แล้ว', 'success'); } }
+function savePhone(phone) { localStorage.setItem('food_order_phone',phone); jsonpFetch(SCRIPT_URL+'?action=savePhone&phone='+encodeURIComponent(phone)).catch(()=>{}); }
+async function fetchPhoneFromSheet() { try { const json=await jsonpFetch(SCRIPT_URL+'?action=getPhone'); if (json.phone) { localStorage.setItem('food_order_phone',json.phone); const el=document.getElementById('admin-phone'); if (el&&!el.value) el.value=json.phone; } } catch(e) {} }
 
-// ════════════════════════════════
-//  LOAD MENUS FROM SHEET
-// ════════════════════════════════
 async function loadMenusFromSheet() {
   const wrap = document.getElementById('menu-editor-wrap');
   if (wrap) wrap.innerHTML = '<div class="loading-state"><div class="spinner"></div><br>กำลังโหลดเมนู...</div>';
   try {
     const json = await jsonpFetch(SCRIPT_URL+'?action=getMenus');
     const rows = json.rows || [];
-    if (rows.length) {
-      menuData = rows;
-      renderAllGrids();
-    }
-    buildEditingMenus(rows);
-    renderMenuEditor();
-  } catch(e) {
-    if (wrap) wrap.innerHTML='<div class="empty-state"><div class="empty-icon">❌</div><p>โหลดเมนูไม่สำเร็จ</p></div>';
-    showToast('❌ โหลดเมนูไม่สำเร็จ: '+e.message,'error');
-  }
+    if (rows.length) { menuData = rows; renderAllGrids(); }
+    buildEditingMenus(rows); renderMenuEditor();
+  } catch(e) { if (wrap) wrap.innerHTML='<div class="empty-state"><div class="empty-icon">❌</div><p>โหลดเมนูไม่สำเร็จ</p></div>'; showToast('❌ โหลดเมนูไม่สำเร็จ: '+e.message,'error'); }
 }
-
 function buildEditingMenus(rows) {
   editingMenus = {};
   for (const r of rows) {
-    const rest = r.restaurant || 'ร้านไม่ระบุ';
-    const cat  = (r.category && r.category !== 'undefined') ? r.category : 'หมวดหมู่';
+    const rest = r.restaurant || 'ร้านไม่ระบุ'; const cat = (r.category && r.category !== 'undefined') ? r.category : 'หมวดหมู่';
     if (!editingMenus[rest]) editingMenus[rest] = { emoji: r.restaurantEmoji||'🍽️', categories: {} };
     if (!editingMenus[rest].categories[cat]) editingMenus[rest].categories[cat] = [];
-    editingMenus[rest].categories[cat].push({
-      id: r.id||('item_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)),
-      name: r.name||'', desc: r.desc||'', price: r.price||0,
-      emoji: r.emoji||'🍽️', tag: r.tag||'',
-      variants: r.variants || []
-    });
+    editingMenus[rest].categories[cat].push({ id: r.id||('item_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), name: r.name||'', desc: r.desc||'', price: r.price||0, emoji: r.emoji||'🍽️', tag: r.tag||'', variants: r.variants || [] });
   }
 }
 
-// ════════════════════════════════
-//  MENU EDITOR RENDER
-// ════════════════════════════════
 function renderMenuEditor() {
-  const wrap = document.getElementById('menu-editor-wrap');
-  if (!wrap) return;
-
-  let html = '<div class="me-toolbar"><h3>🍽️ จัดการเมนู</h3>'+
-    '<button class="me-add-rest-btn" onclick="addRestaurant()">+ เพิ่มร้าน</button></div>';
-
-  // Clean up any "undefined" keys from category names
-  for (const rk of Object.keys(editingMenus)) {
-    const cats = editingMenus[rk].categories;
-    if (cats['undefined']) {
-      const items = cats['undefined'];
-      delete cats['undefined'];
-      cats['หมวดหมู่'] = cats['หมวดหมู่'] ? cats['หมวดหมู่'].concat(items) : items;
-    }
-  }
+  const wrap = document.getElementById('menu-editor-wrap'); if (!wrap) return;
+  let html = '<div class="me-toolbar"><h3>🍽️ จัดการเมนู</h3><button class="me-add-rest-btn" onclick="addRestaurant()">+ เพิ่มร้าน</button></div>';
+  for (const rk of Object.keys(editingMenus)) { const cats = editingMenus[rk].categories; if (cats['undefined']) { const items = cats['undefined']; delete cats['undefined']; cats['หมวดหมู่'] = cats['หมวดหมู่'] ? cats['หมวดหมู่'].concat(items) : items; } }
   const restKeys = Object.keys(editingMenus);
-  if (!restKeys.length) {
-    html += '<div class="empty-state"><div class="empty-icon">🏪</div><p>ยังไม่มีร้านค้า<br>กด + เพิ่มร้าน</p></div>';
-  } else {
+  if (!restKeys.length) { html += '<div class="empty-state"><div class="empty-icon">🏪</div><p>ยังไม่มีร้านค้า<br>กด + เพิ่มร้าน</p></div>'; }
+  else {
     for (const restKey of restKeys) {
-      const rest = editingMenus[restKey];
-      const catKeys = Object.keys(rest.categories);
-      html += '<div class="me-restaurant-card" id="me-rest-'+escId(restKey)+'">';
-      html += '<div class="me-rest-header">'+
-        '<button class="me-rest-emoji-btn" onclick="openEmojiPicker({type:\'rest\',restKey:\''+escAttr(restKey)+'\'})">'+rest.emoji+'</button>'+
-        '<input class="me-rest-name-input" type="text" value="'+escAttr(restKey)+'" placeholder="ชื่อร้าน" onblur="renameRestaurant(\''+escAttr(restKey)+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()">'+
-        '<div class="me-rest-actions">'+
-          '<button class="me-icon-btn" onclick="addCategory(\''+escAttr(restKey)+'\')">+ หมวด</button>'+
-          '<button class="me-icon-btn danger" onclick="deleteRestaurant(\''+escAttr(restKey)+'\')">🗑️</button>'+
-        '</div>'+
-      '</div>';
-      html += '<div class="me-rest-body">';
+      const rest = editingMenus[restKey]; const catKeys = Object.keys(rest.categories);
+      html += '<div class="me-restaurant-card" id="me-rest-'+escId(restKey)+'"><div class="me-rest-header"><button class="me-rest-emoji-btn" onclick="openEmojiPicker({type:\'rest\',restKey:\''+escAttr(restKey)+'\'})">'+rest.emoji+'</button><input class="me-rest-name-input" type="text" value="'+escAttr(restKey)+'" placeholder="ชื่อร้าน" onblur="renameRestaurant(\''+escAttr(restKey)+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><div class="me-rest-actions"><button class="me-icon-btn" onclick="addCategory(\''+escAttr(restKey)+'\')">+ หมวด</button><button class="me-icon-btn danger" onclick="deleteRestaurant(\''+escAttr(restKey)+'\')">🗑️</button></div></div><div class="me-rest-body">';
       for (const catKey of catKeys) {
         const items = rest.categories[catKey];
-        html += '<div class="me-category-block" id="me-cat-'+escId(restKey+'_'+catKey)+'">';
-        html += '<div class="me-cat-header">'+
-          '<input class="me-cat-name-input" type="text" value="'+escAttr(catKey)+'" placeholder="ชื่อหมวดหมู่" onblur="renameCategory(\''+escAttr(restKey)+'\',\''+escAttr(catKey)+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()">'+
-          '<button class="me-icon-btn danger" onclick="deleteCategory(\''+escAttr(restKey)+'\',\''+escAttr(catKey)+'\')">🗑️</button>'+
-        '</div>';
-        html += '<div class="me-items-list">';
+        html += '<div class="me-category-block" id="me-cat-'+escId(restKey+'_'+catKey)+'"><div class="me-cat-header"><input class="me-cat-name-input" type="text" value="'+escAttr(catKey)+'" placeholder="ชื่อหมวดหมู่" onblur="renameCategory(\''+escAttr(restKey)+'\',\''+escAttr(catKey)+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="me-icon-btn danger" onclick="deleteCategory(\''+escAttr(restKey)+'\',\''+escAttr(catKey)+'\')">🗑️</button></div><div class="me-items-list">';
         items.forEach(function(item, idx) {
-          const rk = escAttr(restKey), ck = escAttr(catKey);
+          const rk2 = escAttr(restKey), ck = escAttr(catKey);
           const hasVariants = item.variants && item.variants.length > 0;
-
-          // Build variants editor
           let varHtml = '';
           if (hasVariants) {
-            varHtml += '<div style="grid-column:1/-1;margin-top:4px;background:rgba(245,166,35,0.05);border-radius:8px;padding:7px 10px;">';
-            varHtml += '<div style="font-size:10px;color:var(--text3);margin-bottom:5px;letter-spacing:.5px;">ตัวเลือกราคา</div>';
-            item.variants.forEach(function(v, vi) {
-              varHtml += '<div class="variant-row">'+
-                '<input class="variant-label-input" type="text" value="'+escAttr(v.label)+'" placeholder="ชื่อขนาด เช่น ธรรมดา" onchange="updateVariant(\''+rk+'\',\''+ck+'\','+idx+','+vi+',\'label\',this.value)">'+
-                '<input class="variant-price-input" type="number" value="'+v.price+'" min="0" placeholder="ราคา" onchange="updateVariant(\''+rk+'\',\''+ck+'\','+idx+','+vi+',\'price\',this.value)">'+
-                '<button class="variant-del-btn" onclick="deleteVariant(\''+rk+'\',\''+ck+'\','+idx+','+vi+')">✕</button>'+
-              '</div>';
-            });
-            varHtml += '<button class="add-variant-btn" onclick="addVariant(\''+rk+'\',\''+ck+'\','+idx+')">+ เพิ่มตัวเลือก</button>';
-            varHtml += '</div>';
+            varHtml += '<div style="grid-column:1/-1;margin-top:4px;background:rgba(245,166,35,0.05);border-radius:8px;padding:7px 10px;"><div style="font-size:10px;color:var(--text3);margin-bottom:5px;letter-spacing:.5px;">ตัวเลือกราคา</div>';
+            item.variants.forEach(function(v, vi) { varHtml += '<div class="variant-row"><input class="variant-label-input" type="text" value="'+escAttr(v.label)+'" placeholder="ชื่อขนาด เช่น ธรรมดา" onchange="updateVariant(\''+rk2+'\',\''+ck+'\','+idx+','+vi+',\'label\',this.value)"><input class="variant-price-input" type="number" value="'+v.price+'" min="0" placeholder="ราคา" onchange="updateVariant(\''+rk2+'\',\''+ck+'\','+idx+','+vi+',\'price\',this.value)"><button class="variant-del-btn" onclick="deleteVariant(\''+rk2+'\',\''+ck+'\','+idx+','+vi+')">✕</button></div>'; });
+            varHtml += '<button class="add-variant-btn" onclick="addVariant(\''+rk2+'\',\''+ck+'\','+idx+')">+ เพิ่มตัวเลือก</button></div>';
           }
-
-          // Price field: show only if no variants
-          const priceField = hasVariants ? '' :
-            '<input class="me-item-price" type="number" value="'+item.price+'" min="0" placeholder="ราคา" onchange="updateItemField(\''+rk+'\',\''+ck+'\','+idx+',\'price\',this.value)">';
-
-          html += '<div class="me-item-row" id="me-item-'+escId(restKey+'_'+catKey)+'_'+idx+'">'+
-            '<button class="me-item-emoji-btn" onclick="openEmojiPicker({type:\'item\',restKey:\''+rk+'\',catKey:\''+ck+'\',idx:'+idx+'})">'+item.emoji+'</button>'+
-            '<div class="me-item-fields">'+
-              '<input class="me-item-name" type="text" value="'+escAttr(item.name)+'" placeholder="ชื่ออาหาร" onchange="updateItemField(\''+rk+'\',\''+ck+'\','+idx+',\'name\',this.value)">'+
-              priceField+
-              '<select class="me-item-tag" onchange="updateItemField(\''+rk+'\',\''+ck+'\','+idx+',\'tag\',this.value)">'+
-                '<option value="" '+((!item.tag||item.tag==='')?'selected':'')+'>ปกติ</option>'+
-                '<option value="rec" '+(item.tag==='rec'?'selected':'')+'>⭐ แนะนำ</option>'+
-                '<option value="hot" '+(item.tag==='hot'?'selected':'')+'>🔥 ยอดนิยม</option>'+
-                '<option value="new" '+(item.tag==='new'?'selected':'')+'>✨ ใหม่</option>'+
-              '</select>'+
-              '<input class="me-item-desc" type="text" value="'+escAttr(item.desc||'')+'" placeholder="คำอธิบาย (เลือกได้)" onchange="updateItemField(\''+rk+'\',\''+ck+'\','+idx+',\'desc\',this.value)">'+
-              varHtml+
-              (!hasVariants ?
-                '<button class="add-variant-btn" onclick="addVariant(\''+rk+'\',\''+ck+'\','+idx+')">＋ เพิ่มตัวเลือกราคา (เช่น ธรรมดา/พิเศษ)</button>' : '')+
-            '</div>'+
-            '<button class="me-icon-btn danger" onclick="deleteItem(\''+rk+'\',\''+ck+'\','+idx+')">✕</button>'+
-          '</div>';
+          const priceField = hasVariants ? '' : '<input class="me-item-price" type="number" value="'+item.price+'" min="0" placeholder="ราคา" onchange="updateItemField(\''+rk2+'\',\''+ck+'\','+idx+',\'price\',this.value)">';
+          html += '<div class="me-item-row"><button class="me-item-emoji-btn" onclick="openEmojiPicker({type:\'item\',restKey:\''+rk2+'\',catKey:\''+ck+'\',idx:'+idx+'})">'+item.emoji+'</button><div class="me-item-fields"><input class="me-item-name" type="text" value="'+escAttr(item.name)+'" placeholder="ชื่ออาหาร" onchange="updateItemField(\''+rk2+'\',\''+ck+'\','+idx+',\'name\',this.value)">'+priceField+'<select class="me-item-tag" onchange="updateItemField(\''+rk2+'\',\''+ck+'\','+idx+',\'tag\',this.value)"><option value="" '+((!item.tag||item.tag==='')?'selected':'')+'>ปกติ</option><option value="rec" '+(item.tag==='rec'?'selected':'')+'>⭐ แนะนำ</option><option value="hot" '+(item.tag==='hot'?'selected':'')+'>🔥 ยอดนิยม</option><option value="new" '+(item.tag==='new'?'selected':'')+'>✨ ใหม่</option></select><input class="me-item-desc" type="text" value="'+escAttr(item.desc||'')+'" placeholder="คำอธิบาย (เลือกได้)" onchange="updateItemField(\''+rk2+'\',\''+ck+'\','+idx+',\'desc\',this.value)">'+varHtml+(!hasVariants ? '<button class="add-variant-btn" onclick="addVariant(\''+rk2+'\',\''+ck+'\','+idx+')">＋ เพิ่มตัวเลือกราคา (เช่น ธรรมดา/พิเศษ)</button>' : '')+'</div><button class="me-icon-btn danger" onclick="deleteItem(\''+rk2+'\',\''+ck+'\','+idx+')">✕</button></div>';
         });
-        html += '</div>';
-        html += '<button class="me-add-item-btn" onclick="addItem(\''+escAttr(restKey)+'\',\''+escAttr(catKey)+'\')">+ เพิ่มรายการอาหาร</button>';
-        html += '</div>';
+        html += '</div><button class="me-add-item-btn" onclick="addItem(\''+escAttr(restKey)+'\',\''+escAttr(catKey)+'\')">+ เพิ่มรายการอาหาร</button></div>';
       }
-      html += '<button class="me-add-cat-btn" onclick="addCategory(\''+escAttr(restKey)+'\')">+ เพิ่มหมวดหมู่</button>';
-      html += '</div></div>';
+      html += '<button class="me-add-cat-btn" onclick="addCategory(\''+escAttr(restKey)+'\')">+ เพิ่มหมวดหมู่</button></div></div>';
     }
   }
   wrap.innerHTML = html;
 }
-
 function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
 
-// ════════════════════════════════
-//  MENU EDITOR CRUD
-// ════════════════════════════════
-function addRestaurant() {
-  const name = 'ร้านใหม่ ' + (Object.keys(editingMenus).length+1);
-  editingMenus[name] = { emoji:'🍽️', categories:{ 'หมวดหมู่':[] } };
-  renderMenuEditor();
-}
-function deleteRestaurant(restKey) {
-  if (!confirm('ลบร้าน "'+restKey+'" และเมนูทั้งหมดใช่ไหม?')) return;
-  delete editingMenus[restKey];
-  renderMenuEditor();
-}
-function renameRestaurant(oldKey, newKey) {
-  newKey = (newKey || '').trim();
-  if (!newKey || newKey === oldKey || newKey === 'undefined') return;
-  if (editingMenus[newKey]) { showToast('มีชื่อร้านนี้แล้ว','error'); return; }
-  const data = editingMenus[oldKey]; delete editingMenus[oldKey]; editingMenus[newKey] = data;
-  renderMenuEditor();
-}
-function addCategory(restKey) {
-  if (!editingMenus[restKey]) return;
-  let name = 'หมวดหมู่ใหม่', n = 1;
-  while (editingMenus[restKey].categories[name]) name = 'หมวดหมู่ใหม่ '+(n++);
-  editingMenus[restKey].categories[name] = [];
-  renderMenuEditor();
-  // Auto-focus the new category input
-  setTimeout(() => {
-    const inputs = document.querySelectorAll('.me-cat-name-input');
-    if (inputs.length) inputs[inputs.length-1].focus();
-  }, 100);
-}
-function deleteCategory(restKey, catKey) {
-  if (!confirm('ลบหมวด "'+catKey+'" ใช่ไหม?')) return;
-  delete editingMenus[restKey].categories[catKey];
-  renderMenuEditor();
-}
-function renameCategory(restKey, oldCat, newCat) {
-  newCat = (newCat || '').trim();
-  if (!newCat || newCat === oldCat || newCat === 'undefined') return;
-  const items = editingMenus[restKey].categories[oldCat];
-  delete editingMenus[restKey].categories[oldCat];
-  editingMenus[restKey].categories[newCat] = items;
-  // Don't re-render — just update the key in memory
-  // renderMenuEditor() would reset focus; caller can re-render on blur
-}
-function addItem(restKey, catKey) {
-  editingMenus[restKey].categories[catKey].push({ id:'item_'+Date.now(), name:'อาหารใหม่', desc:'', price:0, emoji:'🍽️', tag:'', variants:[] });
-  renderMenuEditor();
-}
-function deleteItem(restKey, catKey, idx) {
-  editingMenus[restKey].categories[catKey].splice(idx,1);
-  renderMenuEditor();
-}
-function updateItemField(restKey, catKey, idx, field, val) {
-  if (!editingMenus[restKey] || !editingMenus[restKey].categories[catKey]) return;
-  editingMenus[restKey].categories[catKey][idx][field] = (field==='price') ? Number(val)||0 : val;
-}
-// Variant CRUD
-function addVariant(restKey, catKey, idx) {
-  const item = editingMenus[restKey].categories[catKey][idx];
-  if (!item.variants) item.variants = [];
-  item.variants.push({ label: item.variants.length===0 ? 'ธรรมดา' : 'พิเศษ', price: item.price||0 });
-  renderMenuEditor();
-}
-function deleteVariant(restKey, catKey, idx, vi) {
-  editingMenus[restKey].categories[catKey][idx].variants.splice(vi,1);
-  renderMenuEditor();
-}
-function updateVariant(restKey, catKey, idx, vi, field, val) {
-  const v = editingMenus[restKey].categories[catKey][idx].variants[vi];
-  if (!v) return;
-  v[field] = (field==='price') ? Number(val)||0 : val;
-}
+function addRestaurant() { const name = 'ร้านใหม่ ' + (Object.keys(editingMenus).length+1); editingMenus[name] = { emoji:'🍽️', categories:{ 'หมวดหมู่':[] } }; renderMenuEditor(); }
+function deleteRestaurant(restKey) { if (!confirm('ลบร้าน "'+restKey+'" และเมนูทั้งหมดใช่ไหม?')) return; delete editingMenus[restKey]; renderMenuEditor(); }
+function renameRestaurant(oldKey, newKey) { newKey = (newKey || '').trim(); if (!newKey || newKey === oldKey || newKey === 'undefined') return; if (editingMenus[newKey]) { showToast('มีชื่อร้านนี้แล้ว','error'); return; } const data = editingMenus[oldKey]; delete editingMenus[oldKey]; editingMenus[newKey] = data; renderMenuEditor(); }
+function addCategory(restKey) { if (!editingMenus[restKey]) return; let name = 'หมวดหมู่ใหม่', n = 1; while (editingMenus[restKey].categories[name]) name = 'หมวดหมู่ใหม่ '+(n++); editingMenus[restKey].categories[name] = []; renderMenuEditor(); setTimeout(() => { const inputs = document.querySelectorAll('.me-cat-name-input'); if (inputs.length) inputs[inputs.length-1].focus(); }, 100); }
+function deleteCategory(restKey, catKey) { if (!confirm('ลบหมวด "'+catKey+'" ใช่ไหม?')) return; delete editingMenus[restKey].categories[catKey]; renderMenuEditor(); }
+function renameCategory(restKey, oldCat, newCat) { newCat = (newCat || '').trim(); if (!newCat || newCat === oldCat || newCat === 'undefined') return; const items = editingMenus[restKey].categories[oldCat]; delete editingMenus[restKey].categories[oldCat]; editingMenus[restKey].categories[newCat] = items; }
+function addItem(restKey, catKey) { editingMenus[restKey].categories[catKey].push({ id:'item_'+Date.now(), name:'อาหารใหม่', desc:'', price:0, emoji:'🍽️', tag:'', variants:[] }); renderMenuEditor(); }
+function deleteItem(restKey, catKey, idx) { editingMenus[restKey].categories[catKey].splice(idx,1); renderMenuEditor(); }
+function updateItemField(restKey, catKey, idx, field, val) { if (!editingMenus[restKey] || !editingMenus[restKey].categories[catKey]) return; editingMenus[restKey].categories[catKey][idx][field] = (field==='price') ? Number(val)||0 : val; }
+function addVariant(restKey, catKey, idx) { const item = editingMenus[restKey].categories[catKey][idx]; if (!item.variants) item.variants = []; item.variants.push({ label: item.variants.length===0 ? 'ธรรมดา' : 'พิเศษ', price: item.price||0 }); renderMenuEditor(); }
+function deleteVariant(restKey, catKey, idx, vi) { editingMenus[restKey].categories[catKey][idx].variants.splice(vi,1); renderMenuEditor(); }
+function updateVariant(restKey, catKey, idx, vi, field, val) { const v = editingMenus[restKey].categories[catKey][idx].variants[vi]; if (!v) return; v[field] = (field==='price') ? Number(val)||0 : val; }
 
-// ════════════════════════════════
-//  EMOJI PICKER
-// ════════════════════════════════
-const EMOJI_PRESETS = ['🍜','🍛','🍚','🍗','🍖','🥩','🥓','🍱','🥗','🍝','🍣','🍔','🌯','🥙','🍢','🍡',
-  '🧆','🥚','🍳','🥞','🥤','🧋','🥛','☕','🍵','💧','🥤','🧃','🍺','🫖',
-  '🏪','🥘','🫕','🫙','🧇','🌮','🥪','🍕','🌶️','🧅','🧄','🫚','🥬','🥦'];
-
-function openEmojiPicker(target) {
-  emojiPickerTarget = target;
-  document.getElementById('emoji-custom-input').value = '';
-  const grid = document.getElementById('emoji-grid');
-  grid.innerHTML = EMOJI_PRESETS.map(e => '<button onclick="pickEmoji(\''+e+'\')">'+e+'</button>').join('');
-  document.getElementById('emoji-picker-overlay').classList.add('show');
-  setTimeout(() => document.getElementById('emoji-custom-input').focus(), 100);
-}
+const EMOJI_PRESETS = ['🍜','🍛','🍚','🍗','🍖','🥩','🥓','🍱','🥗','🍝','🍣','🍔','🌯','🥙','🍢','🍡','🧆','🥚','🍳','🥞','🥤','🧋','🥛','☕','🍵','💧','🥤','🧃','🍺','🫖','🏪','🥘','🫕','🫙','🧇','🌮','🥪','🍕','🌶️','🧅','🧄','🫚','🥬','🥦'];
+function openEmojiPicker(target) { emojiPickerTarget = target; document.getElementById('emoji-custom-input').value = ''; const grid = document.getElementById('emoji-grid'); grid.innerHTML = EMOJI_PRESETS.map(e => '<button onclick="pickEmoji(\''+e+'\')">'+e+'</button>').join(''); document.getElementById('emoji-picker-overlay').classList.add('show'); setTimeout(() => document.getElementById('emoji-custom-input').focus(), 100); }
 function closeEmojiIfOutside(e) { if (e.target.id==='emoji-picker-overlay') closeEmojiPicker(); }
 function closeEmojiPicker() { document.getElementById('emoji-picker-overlay').classList.remove('show'); }
 function pickEmojiCustom() { const v=document.getElementById('emoji-custom-input').value.trim(); if(v) pickEmoji(v); }
-function pickEmoji(emoji) {
-  if (!emojiPickerTarget) return;
-  const t = emojiPickerTarget;
-  if (t.type==='rest') editingMenus[t.restKey].emoji=emoji;
-  else if (t.type==='item') editingMenus[t.restKey].categories[t.catKey][t.idx].emoji=emoji;
-  closeEmojiPicker();
-  renderMenuEditor();
-}
-
-// ════════════════════════════════
-//  SAVE MENUS TO SHEET
-// ════════════════════════════════
-// Fallback: save menus via chunked JSONP GET (when POST fails)
-// ════════════════════════════════
-//  SAVE MENUS — item-by-item JSONP GET (most reliable, no URL limit)
-// ════════════════════════════════
-async function importBaanOng() {
-  const btn = document.getElementById('import-bo-btn');
-  btn.disabled = true; btn.textContent = '⏳ กำลังนำเข้า...';
-
-  const baanOngItems = [
-    // ราดข้าว
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo01',name:'ราดข้าวหมู',desc:'',price:50,emoji:'🍖',tag:'rec'},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo02',name:'ราดข้าวไก่',desc:'',price:50,emoji:'🍗',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo03',name:'ราดข้าวเครื่องใน',desc:'',price:50,emoji:'🍚',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo04',name:'ราดข้าวตับ',desc:'',price:50,emoji:'🍚',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo05',name:'ราดข้าวปลาดุกกรอบ',desc:'',price:60,emoji:'🐟',tag:'hot'},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo06',name:'ราดข้าวเนื้อ',desc:'',price:60,emoji:'🥩',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo07',name:'ราดข้าวเนื้อ+ปลาดุกกรอบ',desc:'',price:60,emoji:'🥩',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo08',name:'ราดข้าวเนื้อ+เครื่องใน',desc:'',price:60,emoji:'🥩',tag:''},
-    // ข้าวผัด
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo09',name:'ข้าวผัดหมู',desc:'',price:50,emoji:'🍳',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo10',name:'ข้าวผัดไก่',desc:'',price:50,emoji:'🍳',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo11',name:'ข้าวผัดแหนม',desc:'',price:50,emoji:'🍳',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo12',name:'ข้าวผัดกุนเชียง',desc:'',price:50,emoji:'🍳',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo13',name:'ข้าวผัดกุ้ง+หมูกรอบ',desc:'',price:80,emoji:'🍳',tag:'hot'},
-    // กับข้าว
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo14',name:'ต้มจืด หมู/ไก่',desc:'',price:50,emoji:'🥣',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo15',name:'กะเพรา หมู/ไก่',desc:'',price:50,emoji:'🌿',tag:'rec'},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo16',name:'พริกแกง หมู/ไก่',desc:'',price:50,emoji:'🌶️',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo17',name:'เครื่องใน/ตับ/เนื้อ/กุ้ง/หมูกรอบ',desc:'',price:60,emoji:'🍖',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo18',name:'ไข่เจียวหมูสับ',desc:'',price:50,emoji:'🥚',tag:''},
-    // เสริม
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'เสริม',id:'bo19',name:'ไข่คาว',desc:'',price:10,emoji:'🥚',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'เสริม',id:'bo20',name:'ไข่เจียว',desc:'',price:10,emoji:'🥚',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'เสริม',id:'bo21',name:'กุนเชียง',desc:'',price:20,emoji:'🌭',tag:''},
-  ];
-
-  const existing = menuData.filter(i => i.restaurant !== 'อ.บ้านโอ่ง');
-  const merged = [...existing, ...baanOngItems];
-
-  menuData = merged;
-  try { localStorage.setItem('menu_data_v2', JSON.stringify(merged)); } catch(x) {}
-  buildEditingMenus(merged);
-  renderAllGrids();
-
-  try {
-    await fetch(SCRIPT_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify({action:'saveMenus', rows: merged})
-    });
-    showToast('✅ นำเข้าเมนู อ.บ้านโอ่ง ' + baanOngItems.length + ' รายการแล้ว!', 'success');
-  } catch(e) {
-    showToast('✅ นำเข้าแล้ว (local)', 'success');
-  }
-  btn.disabled = false; btn.textContent = '🏠 นำเข้าเมนู อ.บ้านโอ่ง';
-}
-
-async function importHiaMoo() {
-  const btn = document.getElementById('import-hm-btn');
-  btn.disabled = true; btn.textContent = '⏳ กำลังนำเข้า...';
-
-  const hiaMooItems = [
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าวมันไก่',id:'hm01',name:'ข้าวมันไก่ต้ม',desc:'',price:50,emoji:'🍗',tag:'rec',variants:[{label:'ธรรมดา',price:50},{label:'พิเศษ',price:60}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าวมันไก่',id:'hm02',name:'ข้าวมันไก่ทอด',desc:'',price:50,emoji:'🍗',tag:'',variants:[{label:'ธรรมดา',price:50},{label:'พิเศษ',price:60}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าวมันไก่',id:'hm03',name:'ข้าวมันไก่รวม',desc:'ต้ม+ทอด',price:60,emoji:'🍗',tag:'hot',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าว',id:'hm04',name:'ข้าวไก่ต้มน้ำปลา',desc:'',price:60,emoji:'🍚',tag:''},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าว',id:'hm05',name:'ข้าวหมูสามชั้นต้มน้ำปลา',desc:'',price:69,emoji:'🍖',tag:''},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'สุกี้',id:'hm06',name:'สุกี้หมู',desc:'น้ำ / แห้ง',price:60,emoji:'🍲',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'สุกี้',id:'hm07',name:'สุกี้ทะเล',desc:'น้ำ / แห้ง',price:70,emoji:'🦐',tag:'',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'สุกี้',id:'hm08',name:'สุกี้รวม',desc:'น้ำ / แห้ง',price:80,emoji:'🍲',tag:'hot',variants:[{label:'ธรรมดา',price:80},{label:'พิเศษ',price:90}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm09',name:'ก๋วยเตี๋ยวหมูน้ำใส',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:40,emoji:'🍜',tag:'rec',variants:[{label:'ธรรมดา',price:40},{label:'พิเศษ',price:50}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm10',name:'ก๋วยเตี๋ยวหมูต้มยำ',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:50,emoji:'🍜',tag:'',variants:[{label:'ธรรมดา',price:50},{label:'พิเศษ',price:60}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm11',name:'ก๋วยเตี๋ยวต้มยำรวม',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:60,emoji:'🍜',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm12',name:'ก๋วยเตี๋ยวต้มยำเกี้ยวส้วน',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:70,emoji:'🍜',tag:'hot',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm13',name:'เกาเหลาหมูน้ำใส',desc:'',price:60,emoji:'🥣',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm14',name:'เกาเหลาต้มยำรวม',desc:'',price:70,emoji:'🥣',tag:'hot',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm15',name:'เกาเหลาต้มยำหมู',desc:'',price:60,emoji:'🥣',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm16',name:'เกาเหลาเกี้ยวปลาล้วน',desc:'',price:70,emoji:'🥣',tag:'',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
-  ];
-
-  // Merge: keep existing non-เฮียหมู items + add new เฮียหมู
-  const existing = menuData.filter(i => i.restaurant !== 'เฮียหมู');
-  const merged = [...existing, ...hiaMooItems];
-
-  // Update local state
-  menuData = merged;
-  try { localStorage.setItem('menu_data_v2', JSON.stringify(merged)); } catch(x) {}
-  buildEditingMenus(merged);
-  renderAllGrids();
-
-  // Save to Sheets
-  try {
-    await fetch(SCRIPT_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify({action:'saveMenus', rows: merged})
-    });
-    showToast('✅ นำเข้าเมนูเฮียหมู ' + hiaMooItems.length + ' รายการแล้ว!', 'success');
-  } catch(e) {
-    showToast('✅ นำเข้าแล้ว (local)', 'success');
-  }
-  btn.disabled = false; btn.textContent = '🐖 นำเข้าเมนูเฮียหมู';
-}
+function pickEmoji(emoji) { if (!emojiPickerTarget) return; const t = emojiPickerTarget; if (t.type==='rest') editingMenus[t.restKey].emoji=emoji; else if (t.type==='item') editingMenus[t.restKey].categories[t.catKey][t.idx].emoji=emoji; closeEmojiPicker(); renderMenuEditor(); }
 
 async function saveMenusToSheet() {
-  const btn  = document.querySelector('.me-save-btn');
-  const info = document.getElementById('me-save-info');
+  const btn = document.querySelector('.me-save-btn'); const info = document.getElementById('me-save-info');
   btn.disabled = true;
-
-  // Build flat row list
   const rows = [];
   for (const [restName, restVal] of Object.entries(editingMenus)) {
     for (const [catName, items] of Object.entries(restVal.categories)) {
       for (const item of items) {
-        const itemName = (item.name||'').trim();
-        if (!itemName) continue; // skip blank name
-        rows.push({
-          id:             item.id || ('item_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)),
-          restaurant:     restName,
-          restaurantEmoji:restVal.emoji || '🍽️',
-          category:       catName,
-          name:           item.name || '',
-          desc:           item.desc || '',
-          price:          Number(item.price) || 0,
-          emoji:          item.emoji || '🍽️',
-          tag:            item.tag  || '',
-          variants:       item.variants || []
-        });
+        const itemName = (item.name||'').trim(); if (!itemName) continue;
+        rows.push({ id: item.id || ('item_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), restaurant: restName, restaurantEmoji: restVal.emoji || '🍽️', category: catName, name: item.name || '', desc: item.desc || '', price: Number(item.price) || 0, emoji: item.emoji || '🍽️', tag: item.tag || '', variants: item.variants || [] });
       }
     }
   }
-
-  if (!rows.length) {
-    showToast('⚠️ ไม่มีรายการอาหาร', 'error');
-    btn.disabled = false; btn.innerHTML = '💾 บันทึกเมนู';
-    return;
-  }
-
-  // Update local state + localStorage immediately
-  menuData = rows;
-  renderAllGrids();
+  if (!rows.length) { showToast('⚠️ ไม่มีรายการอาหาร', 'error'); btn.disabled = false; btn.innerHTML = '💾 บันทึกเมนู'; return; }
+  menuData = rows; renderAllGrids();
   try { localStorage.setItem('menu_data_v2', JSON.stringify(rows)); } catch(x) {}
-
   try {
     btn.innerHTML = '⏳ กำลังบันทึก...';
-    await fetch(SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify({action:'saveMenus', rows:rows})
-    });
+    await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify({action:'saveMenus', rows:rows}) });
     showToast('✅ บันทึก ' + rows.length + ' รายการแล้ว!', 'success');
     if (info) info.textContent = 'บันทึกล่าสุด: ' + new Date().toLocaleTimeString('th-TH');
-  } catch(e) {
-    showToast('❌ ' + e.message, 'error');
-  }
-  btn.disabled = false;
-  btn.innerHTML = '💾 บันทึกเมนู';
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  btn.disabled = false; btn.innerHTML = '💾 บันทึกเมนู';
 }
 
-
-
-
-// ════════════════════════════════
-//  TOAST
-// ════════════════════════════════
-// Fix Sheets (insert missing headers)
-async function fixSheets() {
-  showToast('⏳ กำลังแก้ไข Sheets...', 'success');
-  try {
-    const res = await jsonpFetch(SCRIPT_URL + '?action=fixSheets');
-    if (res.success) {
-      showToast('✅ แก้ไขแล้ว: ' + (res.fixed||[]).join(', '), 'success');
-    } else {
-      showToast('❌ ' + (res.error||'fail'), 'error');
-    }
-    console.log('fixSheets:', res);
-  } catch(e) {
-    showToast('❌ ' + e.message, 'error');
-  }
-}
-
-// Test connection to Apps Script
-async function testConnection() {
-  const btn = document.getElementById('test-conn-btn');
-  const orig = btn.textContent;
-  btn.textContent = '⏳';
-  try {
-    const res = await jsonpFetch(SCRIPT_URL + '?action=ping');
-    showToast('✅ เชื่อมต่อได้! v' + (res.v||'?'), 'success');
-    console.log('Ping result:', res);
-  } catch(e) {
-    showToast('❌ เชื่อมต่อไม่ได้: ' + e.message, 'error');
-    console.error('Ping error:', e);
-  }
-  btn.textContent = orig;
-}
-
-// Download QR as blob (cross-origin workaround)
-async function downloadQR(url, filename) {
-  try {
-    const resp = await fetch(url);
-    const blob = await resp.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  } catch(e) {
-    // CORS blocked — open in new tab, user can save manually
-    window.open(url, '_blank');
-    showToast('กดค้างที่รูปแล้วเลือก "บันทึกรูปภาพ"', 'success');
-  }
-}
+async function testConnection() { const btn = document.getElementById('test-conn-btn'); const orig = btn.textContent; btn.textContent = '⏳'; try { const res = await jsonpFetch(SCRIPT_URL + '?action=ping'); showToast('✅ เชื่อมต่อได้! v' + (res.v||'?'), 'success'); } catch(e) { showToast('❌ เชื่อมต่อไม่ได้: ' + e.message, 'error'); } btn.textContent = orig; }
+async function downloadQR(url, filename) { try { const resp = await fetch(url); const blob = await resp.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); } catch(e) { window.open(url, '_blank'); showToast('กดค้างที่รูปแล้วเลือก "บันทึกรูปภาพ"', 'success'); } }
 
 function showConfirmModal(title, msg) {
   return new Promise(resolve => {
-    document.getElementById('confirm-title').textContent = title;
-    document.getElementById('confirm-msg').textContent = msg;
-    const overlay = document.getElementById('confirm-overlay');
-    overlay.style.display = 'flex';
-    const okBtn = document.getElementById('confirm-ok-btn');
-    const cancelBtn = document.getElementById('confirm-cancel-btn');
-    function cleanup(result) {
-      overlay.style.display = 'none';
-      okBtn.replaceWith(okBtn.cloneNode(true));
-      cancelBtn.replaceWith(cancelBtn.cloneNode(true));
-      resolve(result);
-    }
+    document.getElementById('confirm-title').textContent = title; document.getElementById('confirm-msg').textContent = msg;
+    const overlay = document.getElementById('confirm-overlay'); overlay.style.display = 'flex';
+    const okBtn = document.getElementById('confirm-ok-btn'); const cancelBtn = document.getElementById('confirm-cancel-btn');
+    function cleanup(result) { overlay.style.display = 'none'; okBtn.replaceWith(okBtn.cloneNode(true)); cancelBtn.replaceWith(cancelBtn.cloneNode(true)); resolve(result); }
     document.getElementById('confirm-ok-btn').onclick = () => cleanup(true);
     document.getElementById('confirm-cancel-btn').onclick = () => cleanup(false);
   });
 }
-
 let _tt;
-function showToast(msg,type='success') {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className='toast '+type+' show';
-  clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2800);
-}
+function showToast(msg,type='success') { const t=document.getElementById('toast'); t.textContent=msg; t.className='toast '+type+' show'; clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2800); }
 
-// ════════════════════════════════
-//  QR NOTIFICATION POLLING
-// ════════════════════════════════
 let _qrPollTimer = null;
-
-function startQrPolling() {
-  if (_qrPollTimer) return;
-  initNotifications(); // ขอ permission + register SW
-  _qrPollTimer = setInterval(()=>{ checkQrNotification(); checkBroadcast(); }, 5000);
-  checkQrNotification();
-  checkBroadcast();
-}
+function startQrPolling() { if (_qrPollTimer) return; initNotifications(); _qrPollTimer = setInterval(()=>{ checkQrNotification(); checkBroadcast(); }, 5000); checkQrNotification(); checkBroadcast(); }
 
 async function checkQrNotification() {
   if (!currentUser) return;
   try {
     const notifKey = encodeURIComponent('qr_' + currentUser);
     const notif = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=' + notifKey);
-
-    // QR cleared — ปิด popup ถ้าค้าง
     if (!notif || !notif.value || !notif.ts) {
       const overlay = document.getElementById('qr-notif-overlay');
-      if (overlay && overlay.style.display !== 'none') {
-        overlay.style.display = 'none';
-        document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='');
-      }
-      localStorage.removeItem('qr_seen_ts_' + currentUser);
-      return;
+      if (overlay && overlay.style.display !== 'none') { overlay.style.display = 'none'; document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display=''); }
+      localStorage.removeItem('qr_seen_ts_' + currentUser); return;
     }
-
-    // seenTs check
     const seenTs = localStorage.getItem('qr_seen_ts_' + currentUser) || '';
     if (notif.ts === seenTs) return;
-
-    // popup ขึ้นแล้ว — ไม่ต้องแสดงซ้ำ
     const overlay = document.getElementById('qr-notif-overlay');
-    if (overlay && overlay.style.display === 'flex') {
-      localStorage.setItem('qr_seen_ts_' + currentUser, notif.ts);
-      return;
-    }
-
-    // แสดง QR popup ทันที ไม่ต้องรอ ack
+    if (overlay && overlay.style.display === 'flex') { localStorage.setItem('qr_seen_ts_' + currentUser, notif.ts); return; }
     localStorage.setItem('qr_seen_ts_' + currentUser, notif.ts);
     showQrNotif(JSON.parse(notif.value));
   } catch(e) {}
 }
-
 function showQrNotif(data) {
   document.getElementById('qrn-name').textContent = '👤 ' + (data.person||'');
   document.getElementById('qrn-amount').textContent = '฿' + (data.amount||0);
   document.getElementById('qrn-img').src = data.qrUrl || '';
-  // Store phone+amount for copy button
-  const copyBtn = document.getElementById('qrn-copy-btn');
-  if (copyBtn) { copyBtn.dataset.phone = localStorage.getItem('food_order_phone')||''; copyBtn.dataset.amount = data.amount||0; }
-  // Store qrUrl for save button
-  const saveBtn = document.getElementById('qrn-save-btn');
-  if (saveBtn) saveBtn.dataset.url = data.qrUrl||'';
+  const copyBtn = document.getElementById('qrn-copy-btn'); if (copyBtn) { copyBtn.dataset.phone = localStorage.getItem('food_order_phone')||''; copyBtn.dataset.amount = data.amount||0; }
+  const saveBtn = document.getElementById('qrn-save-btn'); if (saveBtn) saveBtn.dataset.url = data.qrUrl||'';
   const itemsEl = document.getElementById('qrn-items');
-  itemsEl.innerHTML = (data.items||[]).map(it =>
-    '<div>' + it.emoji + ' ' + it.name + ' ×' + it.qty + ' — ฿' + it.actual + '</div>'
-  ).join('');
+  itemsEl.innerHTML = (data.items||[]).map(it => '<div>' + it.emoji + ' ' + it.name + ' ×' + it.qty + ' — ฿' + it.actual + '</div>').join('');
   document.getElementById('qr-notif-overlay').style.display = 'flex';
-  // ซ่อน bottom-bar และ topbar ไม่ให้ทับ popup
   document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='none');
-
-  // Badge API (PWA icon badge)
   if (typeof updateAppBadge === 'function') updateAppBadge(1);
-  // ไม่ส่ง native notif ตรงนี้ — FCM จะส่งเอง (ทั้ง foreground และ background)
 }
 
-// ── Native Notification System ─────────────────────────
-function testNotification() {
-  if (!('Notification' in window)) {
-    showToast('❌ Browser นี้ไม่รองรับ Notification','error'); return;
-  }
-  if (Notification.permission === 'denied') {
-    showToast('❌ Notification ถูกบล็อก — ต้องแก้ใน Settings ของ Browser','error'); return;
-  }
-  if (Notification.permission === 'default') {
-    Notification.requestPermission().then(p => {
-      if (p === 'granted') { sendNativeNotif('✅ ทดสอบสำเร็จ!','แจ้งเตือนทำงานได้ปกติ 🎉','test'); showToast('✅ อนุญาตแล้ว ทดสอบสำเร็จ','success'); }
-      else showToast('❌ ไม่อนุญาต Notification','error');
-    }); return;
-  }
-  sendNativeNotif('✅ ทดสอบแจ้งเตือน','- กิน อะไร ดี - พร้อมแจ้งเตือนแล้ว 🍱','test');
-  showToast('📲 ส่งแจ้งเตือนทดสอบแล้ว','success');
-}
-
-// ── FCM CONFIG ─────────────────────────────────────────────
 const FCM_VAPID = 'BCDO1-KdKRN1lDXQ3MxpA2AwxLfYOa_BC-a5W8ntzqukVMLkOXOLckaRh5Hkljx-jDkU6tBbpZ0sEfeRMz_2McE';
 let _fcmMessaging = null;
-
 async function initNotifications() {
   if (!('Notification' in window)) return;
-  if (Notification.permission === 'default') {
-    await Notification.requestPermission();
-  }
+  if (Notification.permission === 'default') await Notification.requestPermission();
   if (Notification.permission !== 'granted') return;
   try {
-    // Init Firebase
-    if (!firebase.apps.length) {
-      firebase.initializeApp({
-        apiKey: "AIzaSyB99OE3ts0yE0y6qqAAO6UJxBI6_Envtaw",
-        authDomain: "food-order-2746e.firebaseapp.com",
-        projectId: "food-order-2746e",
-        storageBucket: "food-order-2746e.firebasestorage.app",
-        messagingSenderId: "428851873208",
-        appId: "1:428851873208:web:1a50a03e6edecc6ef5bb4d"
-      });
-    }
+    if (!firebase.apps.length) { firebase.initializeApp({ apiKey: "AIzaSyB99OE3ts0yE0y6qqAAO6UJxBI6_Envtaw", authDomain: "food-order-2746e.firebaseapp.com", projectId: "food-order-2746e", storageBucket: "food-order-2746e.firebasestorage.app", messagingSenderId: "428851873208", appId: "1:428851873208:web:1a50a03e6edecc6ef5bb4d" }); }
     _fcmMessaging = firebase.messaging();
-
-    // Register service worker
     const reg = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-    
-    // Get FCM token
-    const token = await _fcmMessaging.getToken({ 
-      vapidKey: FCM_VAPID,
-      serviceWorkerRegistration: reg
-    });
-    
-    if (token && currentUser) {
-      // บันทึก token ลง GAS เพื่อให้ admin ส่ง push ได้
-      const key = encodeURIComponent('fcm_token_' + currentUser);
-      jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + encodeURIComponent(token) + '&ts=' + Date.now()).catch(()=>{});
-    }
-
-    // foreground: FCM จะไม่แสดง notification อัตโนมัติ
-    // ให้ SW จัดการ background เท่านั้น เพื่อไม่ให้เด้งซ้ำ
-    _fcmMessaging.onMessage(payload => {
-      // ไม่ทำอะไร — popup QR ในแอพจะแสดงแทน
-    });
-  } catch(e) {
-    console.warn('FCM init error:', e);
-    // fallback: ใช้ native notification แทน
-  }
+    const token = await _fcmMessaging.getToken({ vapidKey: FCM_VAPID, serviceWorkerRegistration: reg });
+    if (token && currentUser) { const key = encodeURIComponent('fcm_token_' + currentUser); jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + key + '&value=' + encodeURIComponent(token) + '&ts=' + Date.now()).catch(()=>{}); }
+    _fcmMessaging.onMessage(payload => {});
+  } catch(e) { console.warn('FCM init error:', e); }
 }
 
-function sendNativeNotif(title, body, tag) {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  try {
-    const n = new Notification(title, {
-      body,
-      icon: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
-      badge: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f371.png',
-      tag: tag || 'ginawidee',
-      requireInteraction: true,
-      silent: false
-    });
-    n.onclick = () => { window.focus(); n.close(); };
-  } catch(e) { console.warn('Notification error:', e); }
-}
-
-
-// ════════════════════════════════
-//  BROADCAST NOTIFICATION
-// ════════════════════════════════
-function openBcastModal() {
-  document.getElementById('bcast-modal-overlay').style.display = 'flex';
-  document.getElementById('bcast-custom').value = '';
-  document.querySelectorAll('.bcast-option').forEach(b=>b.classList.remove('selected'));
-}
-function closeBcastModal() {
-  document.getElementById('bcast-modal-overlay').style.display = 'none';
-}
-function selectBcastOption(btn) {
-  document.querySelectorAll('.bcast-option').forEach(b=>b.classList.remove('selected'));
-  btn.classList.add('selected');
-  document.getElementById('bcast-custom').value = '';
-}
-function deselectBcastOptions() {
-  document.querySelectorAll('.bcast-option').forEach(b=>b.classList.remove('selected'));
-}
+function openBcastModal() { document.getElementById('bcast-modal-overlay').style.display = 'flex'; document.getElementById('bcast-custom').value = ''; document.querySelectorAll('.bcast-option').forEach(b=>b.classList.remove('selected')); }
+function closeBcastModal() { document.getElementById('bcast-modal-overlay').style.display = 'none'; }
+function selectBcastOption(btn) { document.querySelectorAll('.bcast-option').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); document.getElementById('bcast-custom').value = ''; }
+function deselectBcastOptions() { document.querySelectorAll('.bcast-option').forEach(b=>b.classList.remove('selected')); }
 async function sendBroadcast() {
-  const selected = document.querySelector('.bcast-option.selected');
-  const custom   = document.getElementById('bcast-custom').value.trim();
+  const selected = document.querySelector('.bcast-option.selected'); const custom = document.getElementById('bcast-custom').value.trim();
   const msg = selected ? selected.textContent.trim() : custom;
   if (!msg) { showToast('⚠️ กรุณาเลือกหรือพิมพ์ข้อความ','error'); return; }
   const ts = String(Date.now());
   jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=broadcast&value=' + encodeURIComponent(msg) + '&ts=' + ts).catch(()=>{});
   localStorage.setItem('bcast_seen_ts_' + currentUser, ts);
-  closeBcastModal();
-  showToast('✅ ส่งแจ้งเตือนแล้ว!', 'success');
+  closeBcastModal(); showToast('✅ ส่งแจ้งเตือนแล้ว!', 'success');
 }
-
-// Polling broadcast — ใช้ pattern เดียวกับ QR notification
 async function checkBroadcast() {
   if (!currentUser) return;
   try {
     const res = await jsonpFetch(SCRIPT_URL + '?action=getNotif&key=broadcast');
     if (!res || !res.value || !res.ts) return;
-    const seenKey = 'bcast_seen_ts_' + currentUser;
-    const seenTs  = localStorage.getItem(seenKey) || '';
+    const seenKey = 'bcast_seen_ts_' + currentUser; const seenTs = localStorage.getItem(seenKey) || '';
     if (res.ts === seenTs) return;
-    localStorage.setItem(seenKey, res.ts);
-    showBcastNotif(res.value);
+    localStorage.setItem(seenKey, res.ts); showBcastNotif(res.value);
   } catch(e) {}
 }
-function showBcastNotif(msg) {
-  // Native notification ก่อนเสมอ (ทำงานแม้อยู่หน้าไหนก็ได้)
-  // ไม่ส่ง native notif — FCM ส่งให้แล้ว
-  // In-app bar (optional)
-  const bar = document.getElementById('bcast-notif-bar');
-  const txt = document.getElementById('bcast-notif-text');
-  if (bar && txt) {
-    txt.textContent = msg;
-    bar.style.display = 'flex';
-    setTimeout(()=>{ if(bar && bar.style.display!='none') closeBcastNotif(); }, 8000);
-  }
-}
-function closeBcastNotif() {
-  document.getElementById('bcast-notif-bar').style.display = 'none';
-}
+function showBcastNotif(msg) { const bar = document.getElementById('bcast-notif-bar'); const txt = document.getElementById('bcast-notif-text'); if (bar && txt) { txt.textContent = msg; bar.style.display = 'flex'; setTimeout(()=>{ if(bar && bar.style.display!='none') closeBcastNotif(); }, 8000); } }
+function closeBcastNotif() { document.getElementById('bcast-notif-bar').style.display = 'none'; }
 
-function openBankingApp() {
-  const btn = document.getElementById('qrn-bank-btn');
-  const amount = btn ? btn.dataset.amount : '0';
+function saveQrImage() { const btn = document.getElementById('qrn-save-btn'); const url = btn ? btn.dataset.url : ''; if (!url) return; const a = document.createElement('a'); a.href = url; a.download = 'PromptPay_QR.png'; a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a); btn.textContent = '✅ บันทึกแล้ว!'; setTimeout(() => { btn.textContent = '💾 บันทึก QR'; }, 2000); }
+function copyPromptPay() { const btn = document.getElementById('qrn-copy-btn'); const phone = btn ? btn.dataset.phone : ''; const amount = btn ? btn.dataset.amount : ''; const text = phone + (amount ? ' ยอด ฿' + amount : ''); navigator.clipboard.writeText(text).then(() => { btn.textContent = '✅ คัดลอกแล้ว!'; setTimeout(() => { btn.innerHTML = '📋 คัดลอกเลขพร้อมเพย์'; }, 2000); }).catch(() => { const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); btn.textContent = '✅ คัดลอกแล้ว!'; setTimeout(() => { btn.innerHTML = '📋 คัดลอกเลขพร้อมเพย์'; }, 2000); }); }
 
-  // ดึง phone จาก localStorage (บันทึกตอน Admin ตั้งค่า)
-  const phone = localStorage.getItem('food_order_phone') || '';
-
-  // promptpay:// URI — เปิดแอพธนาคารโดยตรง
-  // format: promptpay://payment?mobile=<phone>&amount=<amount>
-  const uri = 'promptpay://payment?mobile=' + encodeURIComponent(phone) + '&amount=' + amount;
-
-  // ลองเปิด promptpay:// ก่อน — ถ้าไม่มีแอพ fallback เปิด QR image ใน browser
-  const fallbackUrl = btn ? btn.dataset.url : '';
-  
-  // สร้าง hidden link แล้วคลิก
-  const a = document.createElement('a');
-  a.href = uri;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  // Fallback หลัง 1.5 วิ ถ้าแอพไม่เปิด → เปิด QR ใน browser แทน
-  setTimeout(() => {
-    if (document.visibilityState !== 'hidden' && fallbackUrl) {
-      window.open(fallbackUrl, '_blank');
-    }
-  }, 1500);
-}
-
-function saveQrImage() {
-  const btn = document.getElementById('qrn-save-btn');
-  const url = btn ? btn.dataset.url : '';
-  if (!url) return;
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'PromptPay_QR.png';
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  btn.textContent = '✅ บันทึกแล้ว!';
-  setTimeout(() => { btn.textContent = '💾 บันทึก QR'; }, 2000);
-}
-
-function copyPromptPay() {
-  const btn = document.getElementById('qrn-copy-btn');
-  const phone  = btn ? btn.dataset.phone  : '';
-  const amount = btn ? btn.dataset.amount : '';
-  // คัดลอกเลขพร้อมเพย์ + ยอดเงิน ให้วางใน chat แอพธนาคารได้เลย
-  const text = phone + (amount ? ' ยอด ฿' + amount : '');
-  navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = '✅ คัดลอกแล้ว!';
-    setTimeout(() => { btn.innerHTML = '📋 คัดลอกเลขพร้อมเพย์'; }, 2000);
-  }).catch(() => {
-    // fallback สำหรับเบราว์เซอร์เก่า
-    const ta = document.createElement('textarea');
-    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
-    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-    document.body.removeChild(ta);
-    btn.textContent = '✅ คัดลอกแล้ว!';
-    setTimeout(() => { btn.innerHTML = '📋 คัดลอกเลขพร้อมเพย์'; }, 2000);
-  });
-}
-
-// ── SLIP ADMIN VIEW ─────────────────────────────────────────
+// ── SLIP ADMIN VIEW ──────────────────────────────────────────
 const _slipCache = {};
 async function loadSlipForAdmin(person, personId) {
   try {
@@ -2357,14 +1314,13 @@ async function loadSlipForAdmin(person, personId) {
     if (!res || !res.value) return;
     if (_slipCache[person] === res.ts) return;
     _slipCache[person] = res.ts;
-    // เปลี่ยนปุ่ม "เปิด QR" เป็น "ดูสลิป"
-    const btn = document.getElementById('slip-btn-' + personId);
-    if (!btn) return;
+    const btn = document.getElementById('slip-btn-' + personId); if (!btn) return;
     btn.textContent = '📎 ดูสลิป';
     btn.style.background = 'rgba(76,175,125,0.15)';
     btn.style.color = '#4caf7d';
     btn.style.border = '1px solid rgba(76,175,125,0.4)';
-    btn.onclick = () => showSlipModal(res.value);
+    // res.value คือ Google Drive link โดยตรง
+    btn.onclick = () => window.open(res.value, '_blank');
     btn.removeAttribute('data-url');
   } catch(e) {}
 }
@@ -2375,10 +1331,8 @@ function startSlipPolling() {
   _slipPollingStarted = true;
   setInterval(() => {
     if (!_isAdmin) return;
-    const cards = document.querySelectorAll('.qr-card:not(.paid)');
     document.querySelectorAll('.qr-card').forEach(card => {
-      const person = card.getAttribute('data-person');
-      if (!person) return;
+      const person = card.getAttribute('data-person'); if (!person) return;
       const personId = person.replace(/[^a-zA-Z0-9ก-๙]/g,'_');
       loadSlipForAdmin(person, personId);
     });
@@ -2387,39 +1341,30 @@ function startSlipPolling() {
 
 function showSlipModal(src) {
   const modal = document.createElement('div');
-  modal.className = 'slip-modal';
-  modal.onclick = () => modal.remove();
+  modal.className = 'slip-modal'; modal.onclick = () => modal.remove();
   modal.innerHTML = '<img src="'+src+'" alt="สลิป">';
   document.body.appendChild(modal);
 }
 
-// ── SLIP UPLOAD ─────────────────────────────────────────────
+// ── SLIP UPLOAD → Google Drive ───────────────────────────────
 function handleSlipSelect(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+  const file = event.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
     const img = new Image();
     img.onload = function() {
-      // บีบอัดรูปให้เล็กลง max 300px quality 0.4 เพื่อให้พอดี URL
       const canvas = document.createElement('canvas');
-      // ไม่บีบมาก — chunked upload รับได้ทุกขนาด
-      let maxSize = 1200, quality = 0.85;
+      let maxSize = 1000, quality = 0.75;
       let w = img.width, h = img.height;
       if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
       else { w = Math.round(w * maxSize / h); h = maxSize; }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      let base64 = canvas.toDataURL('image/jpeg', quality);
-      // แสดง preview
+      const base64 = canvas.toDataURL('image/jpeg', quality);
       const preview = document.getElementById('slip-preview');
-      preview.src = base64;
-      preview.classList.add('show');
-      // เปลี่ยนปุ่ม
+      preview.src = base64; preview.classList.add('show');
       const btn = document.getElementById('slip-upload-btn');
-      btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน';
-      btn.classList.add('has-slip');
-      // ส่งขึ้น GAS โดยตรงจาก canvas นี้เลย
+      btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.classList.add('has-slip');
       uploadSlip(base64);
     };
     img.src = e.target.result;
@@ -2431,49 +1376,31 @@ async function uploadSlip(base64) {
   if (!currentUser) return;
   const btn = document.getElementById('slip-upload-btn');
   if (btn) { btn.textContent = '⏳ กำลังอัปโหลด...'; btn.disabled = true; }
-
   try {
-    const CHUNK = 3000; // chars ต่อ chunk
-    const ts = String(Date.now());
-    const key = 'slip_' + currentUser;
-    const total = Math.ceil(base64.length / CHUNK);
-
-    // ส่งทีละ chunk
-    for (let i = 0; i < total; i++) {
-      const chunk = base64.substring(i * CHUNK, (i + 1) * CHUNK);
-      const url = SCRIPT_URL + '?action=saveSlipChunk'
-        + '&key=' + encodeURIComponent(key)
-        + '&chunk=' + encodeURIComponent(chunk)
-        + '&idx=' + i
-        + '&total=' + total
-        + '&ts=' + ts;
-      await jsonpFetch(url);
-    }
-
-    showToast('📎 อัปโหลดสลิปแล้ว', 'success');
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'saveSlip', person: currentUser, base64: base64 })
+    });
+    showToast('📎 อัปโหลดสลิปแล้ว ✅', 'success');
     if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
   } catch(e) {
-    showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
+    showToast('❌ อัปโหลดไม่สำเร็จ: ' + e.message, 'error');
     if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
   }
 }
 
 function resetSlipUpload() {
-  const preview = document.getElementById('slip-preview');
-  if (preview) { preview.src = ''; preview.classList.remove('show'); }
-  const btn = document.getElementById('slip-upload-btn');
-  if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.classList.remove('has-slip'); }
-  const input = document.getElementById('slip-file-input');
-  if (input) input.value = '';
+  const preview = document.getElementById('slip-preview'); if (preview) { preview.src = ''; preview.classList.remove('show'); }
+  const btn = document.getElementById('slip-upload-btn'); if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.classList.remove('has-slip'); }
+  const input = document.getElementById('slip-file-input'); if (input) input.value = '';
 }
-
 function dismissQrNotif() {
   resetSlipUpload();
   document.getElementById('qr-notif-overlay').style.display = 'none';
-  // คืน bottom-bar และ topbar
   document.querySelectorAll('.bottom-bar,.topbar').forEach(el=>el.style.display='');
   if (currentUser) {
-    // Use seenTs (= notif.ts) so ack.ts >= notif.ts is guaranteed
     const seenTs = localStorage.getItem('qr_seen_ts_' + currentUser) || String(Date.now());
     const ackKey = encodeURIComponent('qr_ack_' + currentUser);
     jsonpFetch(SCRIPT_URL + '?action=saveNotif&key=' + ackKey + '&value=paid&ts=' + seenTs).catch(()=>{});
@@ -2481,106 +1408,37 @@ function dismissQrNotif() {
   if (typeof updateAppBadge === 'function') updateAppBadge(0);
 }
 
-// ════════════════════════════════
-//  INIT
-// ════════════════════════════════
 (async function init() {
   function isMenuRow(r) { return r && r.category !== undefined && r.id && !r.timestamp; }
-
-  // ── 1. โหลด localStorage ก่อน — แสดงผลทันที ──────────────
   let loaded = false;
-  try {
-    const ls = localStorage.getItem('menu_data_v2');
-    if (ls) {
-      const rows = JSON.parse(ls);
-      if (rows.length && isMenuRow(rows[0])) {
-        menuData = rows; buildEditingMenus(rows); renderAllGrids(); loaded = true;
-      }
-    }
-  } catch(e) {}
+  try { const ls = localStorage.getItem('menu_data_v2'); if (ls) { const rows = JSON.parse(ls); if (rows.length && isMenuRow(rows[0])) { menuData = rows; buildEditingMenus(rows); renderAllGrids(); loaded = true; } } } catch(e) {}
   if (!loaded) { loadDefaultMenus(); }
-
-  // ── 2. Auto-login ──────────────────────────────────────────
   const saved = localStorage.getItem('food_order_name');
-  if (saved) {
-    currentUser = saved;
-    document.getElementById('display-name').textContent = saved;
-    showPage('page-menu');
-    startQrPolling();
-  }
+  if (saved) { currentUser = saved; document.getElementById('display-name').textContent = saved; showPage('page-menu'); startQrPolling(); }
   renderAllGrids();
-
-  // ── 3. Sync จาก GAS เบื้องหลัง (ไม่บล็อก UI) ─────────────
-  jsonpFetch(SCRIPT_URL + '?action=getMenus').then(json => {
-    if (json && json.rows && json.rows.length && isMenuRow(json.rows[0])) {
-      menuData = json.rows;
-      try { localStorage.setItem('menu_data_v2', JSON.stringify(json.rows)); } catch(x) {}
-      buildEditingMenus(json.rows);
-      renderAllGrids();
-    }
-  }).catch(()=>{});
-
-  // Load orders badge เบื้องหลัง
+  jsonpFetch(SCRIPT_URL + '?action=getMenus').then(json => { if (json && json.rows && json.rows.length && isMenuRow(json.rows[0])) { menuData = json.rows; try { localStorage.setItem('menu_data_v2', JSON.stringify(json.rows)); } catch(x) {} buildEditingMenus(json.rows); renderAllGrids(); } }).catch(()=>{});
   jsonpFetch(SCRIPT_URL+'?action=get').then(j=>updateOrdersBadge(j.rows||[])).catch(()=>{});
-
-  // โหลด admin role เบื้องหลัง
-  if (saved) {
-    _isAdmin = localStorage.getItem('is_admin') === '1';
-    updateAdminUI();
-    // verify กับ GAS เบื้องหลัง
-    jsonpFetch(SCRIPT_URL + '?action=getNotif&key=current_admin').then(res => {
-      const adminName = (res && res.value) ? res.value : '';
-      _isAdmin = (adminName === currentUser);
-      if (!_isAdmin) localStorage.removeItem('is_admin');
-      updateAdminUI();
-    }).catch(()=>{});
-  }
+  if (saved) { _isAdmin = localStorage.getItem('is_admin') === '1'; updateAdminUI(); jsonpFetch(SCRIPT_URL + '?action=getNotif&key=current_admin').then(res => { const adminName = (res && res.value) ? res.value : ''; _isAdmin = (adminName === currentUser); if (!_isAdmin) localStorage.removeItem('is_admin'); updateAdminUI(); }).catch(()=>{}); }
 })();
 
 function loadDefaultMenus() {
   const defaults = [
-    // ── อ.บ้านโอ่ง ──────────────────────────────────────
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo01',name:'ราดข้าวหมู',desc:'',price:50,emoji:'🍖',tag:'rec'},
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo02',name:'ราดข้าวไก่',desc:'',price:50,emoji:'🍗',tag:''},
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo03',name:'ราดข้าวเครื่องใน',desc:'',price:50,emoji:'🍚',tag:''},
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo04',name:'ราดข้าวตับ',desc:'',price:50,emoji:'🍚',tag:''},
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo05',name:'ราดข้าวปลาดุกกรอบ',desc:'',price:60,emoji:'🐟',tag:'hot'},
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo06',name:'ราดข้าวเนื้อ',desc:'',price:60,emoji:'🥩',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo07',name:'ราดข้าวเนื้อ+ปลาดุกกรอบ',desc:'',price:60,emoji:'🥩',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo08',name:'ราดข้าวเนื้อ+เครื่องใน',desc:'',price:60,emoji:'🥩',tag:''},
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo09',name:'ข้าวผัดหมู',desc:'',price:50,emoji:'🍳',tag:''},
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo10',name:'ข้าวผัดไก่',desc:'',price:50,emoji:'🍳',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo11',name:'ข้าวผัดแหนม',desc:'',price:50,emoji:'🍳',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo12',name:'ข้าวผัดกุนเชียง',desc:'',price:50,emoji:'🍳',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ข้าวผัด',id:'bo13',name:'ข้าวผัดกุ้ง+หมูกรอบ',desc:'',price:80,emoji:'🍳',tag:'hot'},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo14',name:'ต้มจืด หมู/ไก่',desc:'',price:50,emoji:'🥣',tag:''},
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo15',name:'กะเพรา หมู/ไก่',desc:'',price:50,emoji:'🌿',tag:'rec'},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo16',name:'พริกแกง หมู/ไก่',desc:'',price:50,emoji:'🌶️',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo17',name:'เครื่องใน/ตับ/เนื้อ/กุ้ง/หมูกรอบ',desc:'',price:60,emoji:'🍖',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'กับข้าว',id:'bo18',name:'ไข่เจียวหมูสับ',desc:'',price:50,emoji:'🥚',tag:''},
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'เสริม',id:'bo19',name:'ไข่คาว',desc:'',price:10,emoji:'🥚',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'เสริม',id:'bo20',name:'ไข่เจียว',desc:'',price:10,emoji:'🥚',tag:''},
-    {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'เสริม',id:'bo21',name:'กุนเชียง',desc:'',price:20,emoji:'🌭',tag:''},
-    // ── เฮียหมู ──────────────────────────────────────────
     {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าวมันไก่',id:'hm01',name:'ข้าวมันไก่ต้ม',desc:'',price:50,emoji:'🍗',tag:'rec',variants:[{label:'ธรรมดา',price:50},{label:'พิเศษ',price:60}]},
     {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าวมันไก่',id:'hm02',name:'ข้าวมันไก่ทอด',desc:'',price:50,emoji:'🍗',tag:'',variants:[{label:'ธรรมดา',price:50},{label:'พิเศษ',price:60}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าวมันไก่',id:'hm03',name:'ข้าวมันไก่รวม',desc:'ต้ม+ทอด',price:60,emoji:'🍗',tag:'hot',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าว',id:'hm04',name:'ข้าวไก่ต้มน้ำปลา',desc:'',price:60,emoji:'🍚',tag:''},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ข้าว',id:'hm05',name:'ข้าวหมูสามชั้นต้มน้ำปลา',desc:'',price:69,emoji:'🍖',tag:''},
+    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm09',name:'ก๋วยเตี๋ยวหมูน้ำใส',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่',price:40,emoji:'🍜',tag:'rec',variants:[{label:'ธรรมดา',price:40},{label:'พิเศษ',price:50}]},
     {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'สุกี้',id:'hm06',name:'สุกี้หมู',desc:'น้ำ / แห้ง',price:60,emoji:'🍲',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'สุกี้',id:'hm07',name:'สุกี้ทะเล',desc:'น้ำ / แห้ง',price:70,emoji:'🦐',tag:'',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'สุกี้',id:'hm08',name:'สุกี้รวม',desc:'น้ำ / แห้ง',price:80,emoji:'🍲',tag:'hot',variants:[{label:'ธรรมดา',price:80},{label:'พิเศษ',price:90}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm09',name:'ก๋วยเตี๋ยวหมูน้ำใส',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:40,emoji:'🍜',tag:'rec',variants:[{label:'ธรรมดา',price:40},{label:'พิเศษ',price:50}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm10',name:'ก๋วยเตี๋ยวหมูต้มยำ',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:50,emoji:'🍜',tag:'',variants:[{label:'ธรรมดา',price:50},{label:'พิเศษ',price:60}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm11',name:'ก๋วยเตี๋ยวต้มยำรวม',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:60,emoji:'🍜',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm12',name:'ก๋วยเตี๋ยวต้มยำเกี้ยวส้วน',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่ / มาม่า / วุ้นเส้น',price:70,emoji:'🍜',tag:'hot',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm13',name:'เกาเหลาหมูน้ำใส',desc:'',price:60,emoji:'🥣',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm14',name:'เกาเหลาต้มยำรวม',desc:'',price:70,emoji:'🥣',tag:'hot',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm15',name:'เกาเหลาต้มยำหมู',desc:'',price:60,emoji:'🥣',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
-    {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'เกาเหลา',id:'hm16',name:'เกาเหลาเกี้ยวปลาล้วน',desc:'',price:70,emoji:'🥣',tag:'',variants:[{label:'ธรรมดา',price:70},{label:'พิเศษ',price:80}]},
   ];
   menuData = defaults;
-  // บันทึกลง localStorage ด้วย เพื่อให้ reload ครั้งถัดไปใช้ได้เลย
   try { localStorage.setItem('menu_data_v2', JSON.stringify(defaults)); } catch(x) {}
   buildEditingMenus(defaults);
 }
