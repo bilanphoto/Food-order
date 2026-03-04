@@ -1386,7 +1386,7 @@ function handleSlipSelect(event) {
     img.onload = function() {
       // บีบรูปก่อนส่ง (Drive รับได้ใหญ่กว่า แต่บีบไว้ให้เร็ว)
       const canvas = document.createElement('canvas');
-      let maxSize = 1200, quality = 0.8;
+      let maxSize = 800, quality = 0.75;
       let w = img.width, h = img.height;
       if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
       else { w = Math.round(w * maxSize / h); h = maxSize; }
