@@ -1319,8 +1319,8 @@ async function loadSlipForAdmin(person, personId) {
     btn.style.background = 'rgba(76,175,125,0.15)';
     btn.style.color = '#4caf7d';
     btn.style.border = '1px solid rgba(76,175,125,0.4)';
-    // res.value คือ Google Drive link โดยตรง
-    btn.onclick = () => window.open(res.value, '_blank');
+    // res.value คือ base64 — แสดงใน modal
+    btn.onclick = () => showSlipModal(res.value);
     btn.removeAttribute('data-url');
   } catch(e) {}
 }
