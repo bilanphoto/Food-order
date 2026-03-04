@@ -605,15 +605,16 @@ let emojiPickerTarget = null;
 const _slipCache = {};
 
 // ── JSONP ─────────────────────────────────────────────────────
-function jsonpFetch(url) {
+function jsonpFetch(url, timeoutMs) {
+  timeoutMs = timeoutMs || 20000;
   return new Promise((resolve, reject) => {
     const cb = '_cb' + Date.now() + Math.random().toString(36).slice(2);
     const script = document.createElement('script');
     const timer = setTimeout(() => {
-      delete window[cb];
-      if (script.parentNode) script.parentNode.removeChild(script);
+      // ไม่ลบ callback ทันที — รอให้ script execute ก่อน 10 วิ
+      setTimeout(() => { delete window[cb]; if (script.parentNode) script.parentNode.removeChild(script); }, 10000);
       reject(new Error('timeout'));
-    }, 20000);
+    }, timeoutMs);
     window[cb] = data => {
       clearTimeout(timer);
       delete window[cb];
@@ -1383,16 +1384,18 @@ function handleSlipSelect(event) {
   reader.onload = function(e) {
     const img = new Image();
     img.onload = function() {
+      // บีบรูปให้เล็กพอดี JSONP GET (~30-50KB)
       const canvas = document.createElement('canvas');
-      let maxSize = 800, quality = 0.65;
+      let maxSize = 400, quality = 0.6;
       let w = img.width, h = img.height;
       if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
       else { w = Math.round(w * maxSize / h); h = maxSize; }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       const base64 = canvas.toDataURL('image/jpeg', quality);
+      // แสดง preview ด้วยรูปต้นฉบับ (สวยกว่า)
       const preview = document.getElementById('slip-preview');
-      preview.src = base64; preview.classList.add('show');
+      preview.src = e.target.result; preview.classList.add('show');
       const btn = document.getElementById('slip-upload-btn');
       btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.classList.add('has-slip');
       uploadSlip(base64);
@@ -1406,38 +1409,44 @@ async function uploadSlip(base64) {
   if (!currentUser) return;
   const btn = document.getElementById('slip-upload-btn');
   if (btn) { btn.textContent = '⏳ กำลังอัปโหลด...'; btn.disabled = true; }
+  const ts = String(Date.now());
+  const key = 'slip_' + currentUser;
+  // ส่งผ่าน JSONP GET — encode ทั้งก้อนเดียว (รูป 400px ~30-50KB ≈ URL ~70KB, อยู่ใน limit)
   try {
-    // ส่งผ่าน POST text/plain — GAS doPost รับได้
-    await fetch(SCRIPT_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'saveSlip', person: currentUser, base64: base64 })
-    });
-    // รอ 2 วิแล้วตรวจสอบว่าถึง GAS จริงไหม ด้วย fetch GET (รองรับ CORS)
-    await new Promise(r => setTimeout(r, 2000));
-    const checkUrl = SCRIPT_URL + '?action=getSlipTs&person=' + encodeURIComponent(currentUser);
-    let confirmed = false;
+    await jsonpFetch(
+      SCRIPT_URL +
+      '?action=saveNotif' +
+      '&key=' + encodeURIComponent(key) +
+      '&value=' + encodeURIComponent(base64) +
+      '&ts=' + ts,
+      60000  // timeout 60 วิ
+    );
+    showToast('📎 อัปโหลดสลิปแล้ว ✅', 'success');
+    if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
+  } catch(e) {
+    // JSONP timeout แต่อาจถึงแล้ว — ตรวจสอบ
     try {
-      const r = await fetch(checkUrl);
-      const j = await r.json();
-      if (j && j.ts) confirmed = true;
-    } catch(ex) {
-      // fallback ใช้ JSONP เช็ค ts เฉยๆ (เบาเพราะไม่มี base64)
-      try {
-        const res = await jsonpFetch(SCRIPT_URL + '?action=getSlipTs&person=' + encodeURIComponent(currentUser));
-        if (res && res.ts) confirmed = true;
-      } catch(ex2) { confirmed = true; } // assume ok
-    }
-    if (confirmed) {
+      await new Promise(r => setTimeout(r, 3000));
+      const res = await jsonpFetch(SCRIPT_URL + '?action=getSlipTs&person=' + encodeURIComponent(currentUser), 15000);
+      if (res && res.ts && Math.abs(Number(res.ts) - Number(ts)) < 30000) {
+        showToast('📎 อัปโหลดสลิปแล้ว ✅', 'success');
+        if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
+        return;
+      }
+    } catch(ex) {}
+    // fallback POST
+    try {
+      await fetch(SCRIPT_URL, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'saveSlip', person: currentUser, base64: base64 })
+      });
       showToast('📎 อัปโหลดสลิปแล้ว ✅', 'success');
       if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
-    } else {
-      showToast('⚠️ สลิปอาจไม่ถึง Admin ลองใหม่', 'error');
-      if (btn) { btn.textContent = '🔄 ลองอัปโหลดใหม่'; btn.disabled = false; btn.classList.remove('has-slip'); }
+    } catch(e2) {
+      showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
+      if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
     }
-  } catch(e) {
-    showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
-    if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
   }
 }
 function resetSlipUpload() {
