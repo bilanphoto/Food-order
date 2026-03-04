@@ -589,7 +589,7 @@ canvas#spin-canvas{border-radius:50%;display:block;width:260px;height:260px;}
 </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4OMSOmxtlN7UhJeXJBNhiIv4mJmZQs4tl3GkZCaQTFIKFchbjk4K9AIPb0AVaPYG6/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw4pUZBOH5PeL75hnd3j1lE8B0JKF7lX3wkrfMrubkUfsSzbs9JLpuxkKH4tAnh6PZw/exec';
 
 let currentUser = '';
 let localCart   = {};
@@ -1384,16 +1384,16 @@ function handleSlipSelect(event) {
   reader.onload = function(e) {
     const img = new Image();
     img.onload = function() {
-      // บีบรูปให้เล็กพอดี JSONP GET (~30-50KB)
+      // บีบรูปก่อนส่ง (Drive รับได้ใหญ่กว่า แต่บีบไว้ให้เร็ว)
       const canvas = document.createElement('canvas');
-      let maxSize = 400, quality = 0.6;
+      let maxSize = 1200, quality = 0.8;
       let w = img.width, h = img.height;
       if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
       else { w = Math.round(w * maxSize / h); h = maxSize; }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       const base64 = canvas.toDataURL('image/jpeg', quality);
-      // แสดง preview ด้วยรูปต้นฉบับ (สวยกว่า)
+      // preview รูปต้นฉบับ
       const preview = document.getElementById('slip-preview');
       preview.src = e.target.result; preview.classList.add('show');
       const btn = document.getElementById('slip-upload-btn');
@@ -1409,44 +1409,35 @@ async function uploadSlip(base64) {
   if (!currentUser) return;
   const btn = document.getElementById('slip-upload-btn');
   if (btn) { btn.textContent = '⏳ กำลังอัปโหลด...'; btn.disabled = true; }
-  const ts = String(Date.now());
-  const key = 'slip_' + currentUser;
-  // ส่งผ่าน JSONP GET — encode ทั้งก้อนเดียว (รูป 400px ~30-50KB ≈ URL ~70KB, อยู่ใน limit)
   try {
-    await jsonpFetch(
-      SCRIPT_URL +
-      '?action=saveNotif' +
-      '&key=' + encodeURIComponent(key) +
-      '&value=' + encodeURIComponent(base64) +
-      '&ts=' + ts,
-      60000  // timeout 60 วิ
-    );
-    showToast('📎 อัปโหลดสลิปแล้ว ✅', 'success');
-    if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
-  } catch(e) {
-    // JSONP timeout แต่อาจถึงแล้ว — ตรวจสอบ
-    try {
-      await new Promise(r => setTimeout(r, 3000));
-      const res = await jsonpFetch(SCRIPT_URL + '?action=getSlipTs&person=' + encodeURIComponent(currentUser), 15000);
-      if (res && res.ts && Math.abs(Number(res.ts) - Number(ts)) < 30000) {
-        showToast('📎 อัปโหลดสลิปแล้ว ✅', 'success');
-        if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
-        return;
-      }
-    } catch(ex) {}
-    // fallback POST
-    try {
-      await fetch(SCRIPT_URL, {
-        method: 'POST', mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ action: 'saveSlip', person: currentUser, base64: base64 })
-      });
+    // ส่งผ่าน POST → GAS บันทึกลง Google Drive → เก็บแค่ URL ใน Sheet
+    await fetch(SCRIPT_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'saveSlip', person: currentUser, base64: base64 })
+    });
+    // รอ GAS อัปโหลด Drive เสร็จ (~3-5 วิ)
+    if (btn) { btn.textContent = '⏳ รอ Drive...'; }
+    await new Promise(r => setTimeout(r, 4000));
+    // ตรวจสอบว่า URL ขึ้น Sheet แล้วหรือยัง
+    let ok = false;
+    for (let i = 0; i < 5; i++) {
+      try {
+        const res = await jsonpFetch(SCRIPT_URL + '?action=getSlipTs&person=' + encodeURIComponent(currentUser), 10000);
+        if (res && res.ts) { ok = true; break; }
+      } catch(ex) {}
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    if (ok) {
       showToast('📎 อัปโหลดสลิปแล้ว ✅', 'success');
       if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
-    } catch(e2) {
-      showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
-      if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
+    } else {
+      showToast('⚠️ อาจใช้เวลานานขึ้น รอสักครู่', 'success');
+      if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
     }
+  } catch(e) {
+    showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
+    if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
   }
 }
 function resetSlipUpload() {
@@ -1514,10 +1505,9 @@ async function loadSlipForAdmin(person, personId) {
     btn.onclick = async () => {
       btn.textContent = '⏳ โหลดสลิป...'; btn.disabled = true;
       try {
-        // ดึง base64 ผ่าน fetch GET (GAS ส่ง CORS header ได้)
-        const r = await fetch(SCRIPT_URL + '?action=getSlipImg&person=' + encodeURIComponent(person));
-        const j = await r.json();
-        if (j && j.value) { showSlipModal(j.value); }
+        // ดึง Drive URL ผ่าน JSONP (เบามาก เพราะเก็บแค่ URL)
+        const res = await jsonpFetch(SCRIPT_URL + '?action=getSlipImg&person=' + encodeURIComponent(person), 10000);
+        if (res && res.value) { showSlipModal(res.value); }
         else showToast('❌ ไม่พบสลิป', 'error');
       } catch(ex) {
         showToast('❌ โหลดสลิปไม่สำเร็จ', 'error');
@@ -1545,7 +1535,13 @@ function startSlipPolling() {
 function showSlipModal(src) {
   const modal = document.createElement('div');
   modal.className = 'slip-modal'; modal.onclick = () => modal.remove();
-  modal.innerHTML = '<img src="' + src + '" alt="สลิป">';
+  // ถ้าเป็น Drive URL ให้เปิดแท็บใหม่แทน (กัน CORB)
+  if (src && src.startsWith('https://drive.google.com')) {
+    modal.remove();
+    window.open(src, '_blank');
+    return;
+  }
+  modal.innerHTML = '<img src="' + src + '" alt="สลิป" style="max-width:100%;max-height:85vh;border-radius:12px;">';
   document.body.appendChild(modal);
 }
 
