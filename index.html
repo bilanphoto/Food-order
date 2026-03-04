@@ -1383,14 +1383,16 @@ function handleSlipSelect(event) {
   reader.onload = function(e) {
     const img = new Image();
     img.onload = function() {
+      // บีบรูปให้เล็กมาก เพื่อให้ผ่าน GAS URL limit (~200KB base64 ≈ 150KB binary)
       const canvas = document.createElement('canvas');
-      let maxSize = 1000, quality = 0.75;
+      let maxSize = 600; // ลดจาก 1000 → 600
       let w = img.width, h = img.height;
       if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
       else { w = Math.round(w * maxSize / h); h = maxSize; }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      const base64 = canvas.toDataURL('image/jpeg', quality);
+      // quality 0.55 เพื่อให้ base64 ≤ ~120KB
+      const base64 = canvas.toDataURL('image/jpeg', 0.55);
       const preview = document.getElementById('slip-preview');
       preview.src = base64; preview.classList.add('show');
       const btn = document.getElementById('slip-upload-btn');
@@ -1401,21 +1403,48 @@ function handleSlipSelect(event) {
   };
   reader.readAsDataURL(file);
 }
+
 async function uploadSlip(base64) {
   if (!currentUser) return;
   const btn = document.getElementById('slip-upload-btn');
   if (btn) { btn.textContent = '⏳ กำลังอัปโหลด...'; btn.disabled = true; }
+
+  // แบ่ง base64 เป็น chunk ส่งผ่าน JSONP (GAS GET) เพื่อเลี่ยงปัญหา no-cors POST
+  // GAS รับ chunk และ assemble ให้เอง
+  const CHUNK = 50000; // 50KB ต่อ chunk
+  const key = 'slip_' + currentUser;
+  const ts = String(Date.now());
+  const total = Math.ceil(base64.length / CHUNK);
+
   try {
-    await fetch(SCRIPT_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'saveSlip', person: currentUser, base64: base64 })
-    });
+    for (let i = 0; i < total; i++) {
+      const chunk = base64.slice(i * CHUNK, (i + 1) * CHUNK);
+      await jsonpFetch(
+        SCRIPT_URL +
+        '?action=saveSlipChunk' +
+        '&key=' + encodeURIComponent(key) +
+        '&chunk=' + encodeURIComponent(chunk) +
+        '&idx=' + i +
+        '&total=' + total +
+        '&ts=' + ts
+      );
+    }
     showToast('📎 อัปโหลดสลิปแล้ว ✅', 'success');
     if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
   } catch(e) {
-    showToast('❌ อัปโหลดไม่สำเร็จ: ' + e.message, 'error');
-    if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
+    // fallback: ลอง POST ธรรมดา
+    try {
+      await fetch(SCRIPT_URL, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'saveSlip', person: currentUser, base64: base64 })
+      });
+      showToast('📎 อัปโหลดสลิปแล้ว ✅', 'success');
+      if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
+    } catch(e2) {
+      showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
+      if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
+    }
   }
 }
 function resetSlipUpload() {
