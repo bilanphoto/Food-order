@@ -1410,31 +1410,25 @@ async function uploadSlip(base64) {
   const btn = document.getElementById('slip-upload-btn');
   if (btn) { btn.textContent = '⏳ กำลังอัปโหลด...'; btn.disabled = true; }
   try {
-    // ส่งผ่าน POST → GAS บันทึกลง Google Drive → เก็บแค่ URL ใน Sheet
+    // POST → GAS บันทึกลง Google Drive → เก็บแค่ URL ใน Sheet
     await fetch(SCRIPT_URL, {
       method: 'POST', mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'saveSlip', person: currentUser, base64: base64 })
     });
-    // รอ GAS อัปโหลด Drive เสร็จ (~3-5 วิ)
     if (btn) { btn.textContent = '⏳ รอ Drive...'; }
+    // รอ GAS อัปโหลด Drive เสร็จ แล้ว verify
     await new Promise(r => setTimeout(r, 4000));
-    // ตรวจสอบว่า URL ขึ้น Sheet แล้วหรือยัง
     let ok = false;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       try {
         const res = await jsonpFetch(SCRIPT_URL + '?action=getSlipTs&person=' + encodeURIComponent(currentUser), 10000);
         if (res && res.ts) { ok = true; break; }
       } catch(ex) {}
-      await new Promise(r => setTimeout(r, 2000));
+      if (!ok) await new Promise(r => setTimeout(r, 2000));
     }
-    if (ok) {
-      showToast('📎 อัปโหลดสลิปแล้ว ✅', 'success');
-      if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
-    } else {
-      showToast('⚠️ อาจใช้เวลานานขึ้น รอสักครู่', 'success');
-      if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
-    }
+    showToast(ok ? '📎 อัปโหลดสลิปแล้ว ✅' : '⚠️ อาจใช้เวลานานขึ้น รอสักครู่', ok ? 'success' : 'success');
+    if (btn) { btn.textContent = '✅ แนบสลิปแล้ว — กดเปลี่ยน'; btn.disabled = false; }
   } catch(e) {
     showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
     if (btn) { btn.textContent = '📎 แนบสลิปโอนเงิน'; btn.disabled = false; btn.classList.remove('has-slip'); }
@@ -1461,19 +1455,12 @@ function dismissQrNotif() {
 // ดึงแค่ ts ก่อน (เบา) ถ้า ts ใหม่ค่อยดึง base64 แยก
 async function loadSlipForAdmin(person, personId) {
   try {
-    // Step1: ดึงแค่ ts (ไม่มี base64 — เบามาก) ผ่าน fetch GET ปกติ
+    // ดึงแค่ ts ผ่าน JSONP (เบามาก ไม่มี base64)
     let ts = null;
     try {
-      const r = await fetch(SCRIPT_URL + '?action=getSlipTs&person=' + encodeURIComponent(person));
-      const j = await r.json();
-      ts = (j && j.ts) ? j.ts : null;
-    } catch(ex) {
-      // fallback JSONP
-      try {
-        const res = await jsonpFetch(SCRIPT_URL + '?action=getSlipTs&person=' + encodeURIComponent(person));
-        ts = (res && res.ts) ? res.ts : null;
-      } catch(ex2) {}
-    }
+      const res = await jsonpFetch(SCRIPT_URL + '?action=getSlipTs&person=' + encodeURIComponent(person));
+      ts = (res && res.ts) ? res.ts : null;
+    } catch(ex) {}
 
     // ถ้าไม่มี ts → ล้าง cache และ reset ปุ่ม
     if (!ts) {
