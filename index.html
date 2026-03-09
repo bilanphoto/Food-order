@@ -749,9 +749,9 @@ function buildMenuFromData(data) {
   const cleanData = data.filter(i => !i.isCustom);
   data = cleanData;
   const restaurants = [...new Set(data.map(i => i.restaurant))];
-  const customs = restaurants.map(rest => {
+  const customs = restaurants.map((rest, ri) => {
     const sample = data.find(i => i.restaurant === rest) || {};
-    return { id: 'custom_' + rest.replace(/[^a-zA-Z0-9]/g, ''), restaurant: rest, restaurantEmoji: sample.restaurantEmoji || '🍽️', category: '✏️ รายการพิเศษ', name: '', desc: 'พิมพ์ชื่อและราคาเอง', price: 0, emoji: '✏️', tag: '', isCustom: true };
+    return { id: 'custom_' + ri, restaurant: rest, restaurantEmoji: sample.restaurantEmoji || '🍽️', category: '✏️ รายการพิเศษ', name: '', desc: 'พิมพ์ชื่อและราคาเอง', price: 0, emoji: '✏️', tag: '', isCustom: true };
   });
   const allData = [...data, ...customs];
   menuData = allData; menuMap = {};
