@@ -1018,16 +1018,17 @@ function renderAllOrdersTable(rows, container) {
 
 // ── DELETE SINGLE ORDER ROW ──────────────────────────────────
 async function deleteOrderRow(idx, btn) {
+  const row = document.getElementById('order-row-' + idx);
+  const foodName = row ? row.querySelector('.td-food-name')?.textContent : 'รายการนี้';
+  const ok = await showConfirmModal('🗑️ ลบรายการ?', '"' + foodName + '"');
+  if (!ok) return;
   btn.disabled = true; btn.textContent = '⏳';
   try {
     await jsonpFetch(SCRIPT_URL + '?action=deleteOrder&idx=' + idx);
-    // ลบ row ออกจากหน้าจอทันที
-    const row = document.getElementById('order-row-' + idx);
     if (row) {
       row.style.transition = 'opacity 0.3s';
       row.style.opacity = '0';
       setTimeout(() => {
-        // reload ใหม่เพื่อ update index และ totals
         const el = document.getElementById('all-orders-list');
         if (el) loadAllOrders(el);
       }, 300);
