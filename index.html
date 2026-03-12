@@ -65,6 +65,11 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 .tabs{display:flex;gap:4px;overflow-x:auto;}
 .tab-btn{background:transparent;border:none;padding:9px 16px 11px;font-family:'Kanit',sans-serif;font-size:14px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2.5px solid transparent;transition:all .2s;border-radius:8px 8px 0 0;white-space:nowrap;flex-shrink:0;}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(245,166,35,0.06);}
+.fav-btn{position:absolute;top:6px;right:6px;background:none;border:none;font-size:16px;cursor:pointer;line-height:1;padding:3px 4px;border-radius:6px;color:#aaa;transition:color .2s,transform .2s;}
+.fav-btn:hover{color:#ccc;}
+.fav-btn.active{color:#f5c842;transform:scale(1.15);}
+.fav-empty{text-align:center;padding:48px 24px;color:var(--text3);}
+.fav-empty-icon{font-size:48px;margin-bottom:12px;}
 
 /* MENU */
 .tab-content{display:none;padding:14px;padding-bottom:80px;}
@@ -602,9 +607,44 @@ let adminRows   = [];
 let emojiPickerTarget = null;
 
 // ── SLIP STATE ────────────────────────────────────────────────
-// key = person name, value = ts ของสลิปที่โหลดมาล่าสุด
-// ใช้เพื่อป้องกันการแสดงสลิปเก่าซ้ำ
 const _slipCache = {};
+
+// ── FAVORITES STATE ───────────────────────────────────────────
+const _favorites = new Set(JSON.parse(localStorage.getItem('fav_items') || '[]'));
+
+function toggleFav(itemId, e) {
+  if (e) { e.stopPropagation(); e.preventDefault(); }
+  if (_favorites.has(itemId)) { _favorites.delete(itemId); } else { _favorites.add(itemId); }
+  try { localStorage.setItem('fav_items', JSON.stringify([..._favorites])); } catch(x) {}
+  // อัปเดตปุ่มดาวใน card
+  const card = document.getElementById('card-' + itemId);
+  if (card) {
+    const btn = card.querySelector('.fav-btn');
+    if (btn) { btn.classList.toggle('active', _favorites.has(itemId)); btn.textContent = '★'; }
+  }
+  renderFavTab();
+}
+
+function renderFavTab() {
+  const cont = document.getElementById('tab-favorites'); if (!cont) return;
+  const favItems = (menuData || []).filter(i => !i.isCustom && _favorites.has(i.id));
+  if (!favItems.length) {
+    cont.innerHTML = '<div class="fav-empty"><div class="fav-empty-icon">⭐</div><p>ยังไม่มีเมนูถูกใจ<br><span style="font-size:13px;opacity:.6;">กดดาว ☆ ที่เมนูที่ชอบเพื่อเพิ่มที่นี่</span></p></div>';
+    return;
+  }
+  // จัดกลุ่มตามร้าน
+  const byRest = {};
+  for (const item of favItems) {
+    if (!byRest[item.restaurant]) byRest[item.restaurant] = [];
+    byRest[item.restaurant].push(item);
+  }
+  let html = '';
+  for (const [rest, items] of Object.entries(byRest)) {
+    html += '<div class="section-title">' + (items[0].restaurantEmoji || '🍽️') + ' ' + rest + '</div>';
+    html += '<div class="menu-grid">' + items.map(i => cardHTML(i)).join('') + '</div>';
+  }
+  cont.innerHTML = html;
+}
 
 // ── JSONP ─────────────────────────────────────────────────────
 function jsonpFetch(url, timeoutMs) {
@@ -760,6 +800,17 @@ function buildMenuFromData(data) {
   const contentsEl = document.getElementById('menu-tab-contents');
   tabsEl.innerHTML = ''; contentsEl.innerHTML = '';
   if (!data.length) { contentsEl.innerHTML = '<div class="empty-menu-hint">ยังไม่มีเมนู — ไปที่ 🔧 Admin เพื่อเพิ่มเมนูก่อน</div>'; return; }
+  // แท็บ ⭐ ถูกใจ
+  const favTab = document.createElement('button');
+  favTab.className = 'tab-btn';
+  favTab.innerHTML = '⭐ ถูกใจ';
+  favTab.onclick = function() { switchMenuTab('tab-favorites', favTab); };
+  tabsEl.appendChild(favTab);
+  const favCont = document.createElement('div');
+  favCont.className = 'tab-content';
+  favCont.id = 'tab-favorites';
+  contentsEl.appendChild(favCont);
+  renderFavTab();
   const restMap = {};
   for (const item of allData) {
     if (!restMap[item.restaurant]) restMap[item.restaurant] = { emoji: item.restaurantEmoji || '🍽️', cats: {} };
@@ -893,13 +944,17 @@ function cardHTML(item) {
     const anyInCart = item.variants.some((_, vi) => !!localCart[item.id + '__v' + vi]);
     const firstCart = item.variants.map((_, vi) => localCart[item.id + '__v' + vi]).find(c => c);
     const note = firstCart ? (firstCart.note || '') : '';
-    return '<div class="menu-card ' + (anyInCart ? 'in-cart' : '') + '" id="card-' + item.id + '"><div class="menu-emoji">' + item.emoji + '</div><div class="menu-info" style="flex:1"><div class="menu-name">' + item.name + tag + '</div>' + (item.desc ? '<div class="menu-desc">' + item.desc + '</div>' : '') + varBtns + '<div class="note-row ' + (anyInCart ? 'visible' : '') + '" id="nr-' + item.id + '"><input class="note-input" type="text" placeholder="หมายเหตุ..." value="' + note + '" onchange="updateNoteAll(\'' + item.id + '\',' + item.variants.length + ',this.value)"></div></div></div>';
+    const isFavV = _favorites.has(item.id);
+    const favBtnV = '<button class="fav-btn' + (isFavV ? ' active' : '') + '" onclick="toggleFav(\'' + item.id + '\',event)" title="ถูกใจ">' + (isFavV ? '★' : '★') + '</button>';
+    return '<div class="menu-card ' + (anyInCart ? 'in-cart' : '') + '" id="card-' + item.id + '" style="position:relative">' + favBtnV + '<div class="menu-emoji">' + item.emoji + '</div><div class="menu-info" style="flex:1"><div class="menu-name">' + item.name + tag + '</div>' + (item.desc ? '<div class="menu-desc">' + item.desc + '</div>' : '') + varBtns + '<div class="note-row ' + (anyInCart ? 'visible' : '') + '" id="nr-' + item.id + '"><input class="note-input" type="text" placeholder="หมายเหตุ..." value="' + note + '" onchange="updateNoteAll(\'' + item.id + '\',' + item.variants.length + ',this.value)"></div></div></div>';
   }
   const ci = localCart[item.id];
   const qty = ci ? ci.qty : 0;
   const note = ci ? (ci.note || '') : '';
+  const isFav = _favorites.has(item.id);
   const ic = qty > 0;
-  return '<div class="menu-card ' + (ic ? 'in-cart' : '') + '" id="card-' + item.id + '"><div class="menu-emoji">' + item.emoji + '</div><div class="menu-info"><div class="menu-name">' + item.name + tag + '</div>' + (item.desc ? '<div class="menu-desc">' + item.desc + '</div>' : '') + ' <div class="menu-price">฿' + item.price + '</div><div class="note-row ' + (ic ? 'visible' : '') + '" id="nr-' + item.id + '"><input class="note-input" type="text" placeholder="หมายเหตุ เช่น ไม่เผ็ด..." value="' + note + '" onchange="updateNote(\'' + item.id + '\',this.value)"></div></div><div class="qty-ctrl">' + (qty > 0 ? '<button class="qty-btn" onclick="chg(\'' + item.id + '\',-1)">−</button><span class="qty-num">' + qty + '</span>' : '') + '<button class="qty-btn add" onclick="chg(\'' + item.id + '\',1)">+</button></div></div>';
+  const favBtn = '<button class="fav-btn' + (isFav ? ' active' : '') + '" onclick="toggleFav(\'' + item.id + '\',event)" title="ถูกใจ">' + (isFav ? '★' : '★') + '</button>';
+  return '<div class="menu-card ' + (ic ? 'in-cart' : '') + '" id="card-' + item.id + '" style="position:relative">' + favBtn + '<div class="menu-emoji">' + item.emoji + '</div><div class="menu-info"><div class="menu-name">' + item.name + tag + '</div>' + (item.desc ? '<div class="menu-desc">' + item.desc + '</div>' : '') + ' <div class="menu-price">฿' + item.price + '</div><div class="note-row ' + (ic ? 'visible' : '') + '" id="nr-' + item.id + '"><input class="note-input" type="text" placeholder="หมายเหตุ เช่น ไม่เผ็ด..." value="' + note + '" onchange="updateNote(\'' + item.id + '\',this.value)"></div></div><div class="qty-ctrl">' + (qty > 0 ? '<button class="qty-btn" onclick="chg(\'' + item.id + '\',-1)">−</button><span class="qty-num">' + qty + '</span>' : '') + '<button class="qty-btn add" onclick="chg(\'' + item.id + '\',1)">+</button></div></div>';
 }
 function renderAllGrids() { buildMenuFromData(menuData); updateBadge(); }
 function refreshCard(itemId) {
@@ -1600,6 +1655,7 @@ function showSlipModal(src) {
   if (saved) { _isAdmin = localStorage.getItem('is_admin') === '1'; updateAdminUI(); jsonpFetch(SCRIPT_URL + '?action=getNotif&key=current_admin').then(res => { const adminName = (res && res.value) ? res.value : ''; _isAdmin = (adminName === currentUser); if (!_isAdmin) localStorage.removeItem('is_admin'); updateAdminUI(); }).catch(() => {}); }
 })();
 
+
 function loadDefaultMenus() {
   const defaults = [
     {restaurant:'อ.บ้านโอ่ง',restaurantEmoji:'🏠',category:'ราดข้าว',id:'bo01',name:'ราดข้าวหมู',desc:'',price:50,emoji:'🍖',tag:'rec'},
@@ -1617,9 +1673,7 @@ function loadDefaultMenus() {
     {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'ก๋วยเตี๋ยว',id:'hm09',name:'ก๋วยเตี๋ยวหมูน้ำใส',desc:'เส้นเล็ก / บะหมี่ / หมีขาว / เส้นใหญ่',price:40,emoji:'🍜',tag:'rec',variants:[{label:'ธรรมดา',price:40},{label:'พิเศษ',price:50}]},
     {restaurant:'เฮียหมู',restaurantEmoji:'🐖',category:'สุกี้',id:'hm06',name:'สุกี้หมู',desc:'น้ำ / แห้ง',price:60,emoji:'🍲',tag:'',variants:[{label:'ธรรมดา',price:60},{label:'พิเศษ',price:70}]},
   ];
-  menuData = defaults;
-  try { localStorage.setItem('menu_data_v2', JSON.stringify(defaults)); } catch(x) {}
-  buildEditingMenus(defaults);
+  menuData = defaults; buildEditingMenus(defaults); renderAllGrids();
 }
 </script>
 </body>
